@@ -1,5 +1,5 @@
 from __future__ import print_function, with_statement, division
-from Bio.Align.Applications import ClustalOmegaCommandline
+from Bio.Align.Applications import ClustalOmegaCommandline, MuscleCommandline
 from Bio import Entrez
 from Bio import SeqIO
 from Bio import AlignIO
@@ -7,24 +7,41 @@ import numpy as np
 from operator import itemgetter
 from itertools import groupby
 import os
+import time
 
 Entrez.email = 'elubeck@caltech.edu'
 
 
 def get_mRNA_cdss(gene, organism='"Mus musculus"[porgn:__txid10090]', conserved_region=True):
-    handle = Entrez.esearch(db="nucleotide", term='(%s) AND %s AND mRNA' % (gene, organism))
-    record = Entrez.read(handle)
-    handle = Entrez.efetch(db='nucleotide', id=record['IdList'], rettype='gb')
+    handle = None
+    iterations = 0
+    max_it = 10
+    while True:
+        handle = Entrez.esearch(db="nucleotide", term='(%s) AND %s AND mRNA' % (gene, organism))
+        record = Entrez.read(handle)
+        handle = Entrez.efetch(db='nucleotide', id=record['IdList'], rettype='gb')
+        if handle is not None:
+            break
+        if iterations > max_it:
+            raise Exception("CDS not retrieved")
+        iterations += 1
+        time.sleep(4)
     return handle
 
 
-def align_seqs(seqs):
-    in_file = "temp_variant_cds.fasta"
-    out_file = "temp_variant_cds_aligned.fasta"
+def align_seqs(seqs, aligner='muscle'):
+    import random
+    r_num = ''.join(map(str, random.sample(range(100), 10)))
+    in_file = "%s_temp_variant_cds.fasta" % r_num
+    out_file = "%s_temp_variant_cds_aligned.fasta" % r_num
     with open(in_file, 'w') as f:
         SeqIO.write(seqs, f, 'fasta')
-    cline = ClustalOmegaCommandline(infile=in_file,
-                                    outfile=out_file,)
+    if aligner == 'muscle':
+        cline = MuscleCommandline(input=in_file,
+                                  out=out_file,)
+    elif aligner == 'clustalo':
+        cline = ClustalOmegaCommandline(infile=in_file,
+                                        outfile=out_file,)
     cline()
     ali = AlignIO.read(out_file, format='fasta')
     ali_arr = np.array([list(rec) for rec in ali], np.character)
@@ -43,14 +60,17 @@ def align_seqs(seqs):
     return contiguous
 
 
-def merge_cds(handle, variants=True):
+def merge_cds(handle, variants=True, query=None):
     cds = []
     match = ['NM']
     if variants == True:
         match = ['NM', 'XM']
-    for record in SeqIO.parse(handle, format='gb'):
+    # for record in SeqIO.parse(handle, format='gb'):
+    for record in handle:
         if any(record.id.startswith(cond) for cond in match):
-            if variants is False and 'variant' in record.id:
+            if variants is False and 'variant' in record.description:
+                continue
+            if query is not None and "(%s)" % query.lower() not in record.description.lower():
                 continue
             for feature in record.features:
                 if feature.type=='CDS':
