@@ -43,14 +43,21 @@ def align_seqs(seqs):
     return contiguous
 
 
-def merge_cds(handle):
+def merge_cds(handle, variants=True):
     cds = []
+    match = ['NM']
+    if variants == True:
+        match = ['NM', 'XM']
     for record in SeqIO.parse(handle, format='gb'):
-        if (record.id.startswith("NM") or record.id.startswith("XM")):
+        if any(record.id.startswith(cond) for cond in match):
+            if variants is False and 'variant' in record.id:
+                continue
             for feature in record.features:
                 if feature.type=='CDS':
                     cds.append(feature.extract(record))
                     break
+    if len(cds) > 1 and variants is False:
+        raise Exception("Variants should not have been found.")
     if len(cds) > 1:
         contiguous = align_seqs(cds)
     elif any(cds):
@@ -60,7 +67,7 @@ def merge_cds(handle):
     return {"CDS List": contiguous,
             '# Isoforms': len(cds)}
 
-    
+
 if __name__ == '__main__':
     gene = "RUFY4"
     handle = get_mRNA_cdss(gene)
