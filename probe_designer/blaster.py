@@ -52,18 +52,22 @@ def blast_query(query, max_time=120, max_iterations=10):
             return q
         iterations+=1
 
+def parse_hits(handle, strand=-1):
+    #Parse blast hits
+    gene_hits = defaultdict(list)
+    for record in NCBIXML.parse(handle):
+        for alignment in record.alignments:
+            for hsp in alignment.hsps:
+                #Check that hit is on opposite strand
+                if hsp.frame[1] == strand:
+                    gene_hits[record.query].append(alignment.hit_def)
+    return gene_hits
+
 
 def blast_probes(gene, probe_df, debug=False):
     fasta_query = probe_df_to_fasta(probe_df)
     q = blast_query(fasta_query)
-    #Parse blast hits
-    gene_hits = defaultdict(list)
-    for record in NCBIXML.parse(q):
-        for alignment in record.alignments:
-            for hsp in alignment.hsps:
-                #Check that hit is on opposite strand
-                if hsp.frame[1] == -1:
-                    gene_hits[record.query].append(alignment.hit_def)
+    gene_hits = parse_hits(q)
     if debug:
         #Print the false hits for an entire gene
         i = Counter([hit for k, v in gene_hits.iteritems() for hit in v])
@@ -72,7 +76,6 @@ def blast_probes(gene, probe_df, debug=False):
         print(gene, s)
         print('...\n'*3)
     return gene_hits
-        ### Naievely reduces probes to minimize global false hits for a given probeset
 
 import collections
 def flatten(l):
@@ -84,7 +87,8 @@ def flatten(l):
             yield el
 
 
-def filter_probes_based_on_blast(gene, blast_hits, probe_df, max_false_hits=8):
+def filter_probes_based_on_blast(gene, blast_hits, probe_df, max_false_hits=7):
+    ## Naively reduces probes to minimize global false hits for a given probeset
     gene = gene.strip()
     #Make an index of bad blast hits
     i = Counter([hit for k, v in blast_hits.iteritems() for hit in v])
@@ -108,9 +112,8 @@ def filter_probes_based_on_blast(gene, blast_hits, probe_df, max_false_hits=8):
     i2 = Counter([hit for probe in select_probes for hit in blast_hits[probe]])
     s2 = pd.Series({k:v for k,v in i2.iteritems()})
     s2.sort(ascending=False)
-    if s2[bad_genes].max()>8:
+    if s2[bad_genes].max() > max_false_hits:
         raise Exception("Bad probeset for %s" % gene)
     passed_df = pd.concat([probe_df.ix[probe_df['Probe Name']==probe]
                            for probe in select_probes])
     return passed_df
-    
