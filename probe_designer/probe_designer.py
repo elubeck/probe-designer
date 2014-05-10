@@ -5,23 +5,55 @@ import biosearch_designer
 from itertools import groupby
 import pandas as pd
 import blaster
+from collections import defaultdict
 
 min_probes = 24
 
 
 def maximize_masking(probes):
     passed = []
+    passed = defaultdict(dict)
     for k, v in groupby(probes, key=lambda x: x['Name']):
         for k1, v1 in groupby(v, key=lambda x: x['Masking']):
             v1 = list(v1)
             n_probes = sum([len(probe_set['Probes']) for probe_set in v1])
             if n_probes >= 24:
-                passed.append((k, k1, v1))
+                # passed.append((k, k1, v1))
+                passed[k][k1] = v1
     p2 = {}
-    for k, v in groupby(passed, key=lambda x: x[0]):
-        p = [i for mask, i 
-             in sorted(groupby(v, key=lambda x: x[1]), reverse=True)]
-        p2[k] = list(p[0])[0][2]
+    for gene, m_dist in passed.iteritems():
+        highest_key = sorted(m_dist.keys(), reverse=True)[0]
+        p2[gene] = m_dist[highest_key]
+    return p2
+
+    # p2 = {}
+    # for k, v in groupby(passed, key=lambda x: x[0]):
+    #     v = list(v)
+    #     print(len(v))
+    #     print([len(i[2]) for i in v])
+    #     alist = list( sorted(groupby(v, key=lambda x: x[1]), reverse=True))
+    #     # for mask, i in sorted(groupby(v, key=lambda x: x[1]), reverse=True):
+    #     for mask, i in alist:
+    #         conta = i.next()
+    #         try:
+    #             # p2[k] = list(i)[2]
+    #             p2[k] = conta[2]
+    #             print("Passed %s" %k)
+    #         except:
+    #             import pdb
+    #             pdb.set_trace()
+    #         break
+            
+        # pt = [i for mask, i 
+        #      in sorted(groupby(v, key=lambda x: x[1]), reverse=True)]
+        # try:
+        #     arr = list(pt[0])
+        #     p2[k] = arr[0][2]
+        #     print("Success: %s" %k)
+        # except:
+        #     for mask, i in sorted(groupby(v, key=lambda x: x[1]), reverse=True):
+        #         import pdb
+        #         pdb.set_trace()
     return p2
 
 

@@ -7,9 +7,12 @@ from Bio.Blast import NCBIWWW, NCBIXML
 import sys
 from time import sleep
 import pandas as pd
+import collections
+
 
 class TimeoutError(Exception):
     pass
+
 
 class timeout:
     def __init__(self, seconds=1, error_message='Timeout'):
@@ -26,11 +29,12 @@ class timeout:
 
 def probe_df_to_fasta(probe_df):
     p = []
-    for k, v in probe_df.iterrows(): 
-        p.append('>%s\n%s' 
-             %(v['Probe Name'], v["Probe (5'-> 3')"]))
+    for k, v in probe_df.iterrows():
+        p.append('>%s\n%s'
+                 % (v['Probe Name'], v["Probe (5'-> 3')"]))
     fasta = '\n'.join(p)
     return fasta
+
 
 def blast_query(query, max_time=120, max_iterations=10):
     # Loop with timeout while blasting incase server doesn't respond
@@ -40,8 +44,8 @@ def blast_query(query, max_time=120, max_iterations=10):
         with timeout(seconds=max_time):
             try:
                 q = NCBIWWW.qblast('blastn', 'refseq_rna', query,
-                               entrez_query='"Mus musculus"[porgn:__txid10090]',
-                               word_size=7)
+                                   entrez_query='"Mus musculus"[porgn:__txid10090]',
+                                   word_size=7)
             except:
                 print("Failed on iteration %i" % iterations)
                 if iterations >= max_iterations:
@@ -50,7 +54,8 @@ def blast_query(query, max_time=120, max_iterations=10):
                 sleep(5)
         if q:
             return q
-        iterations+=1
+        iterations += 1
+
 
 def parse_hits(handle, strand=-1):
     #Parse blast hits
@@ -77,7 +82,7 @@ def blast_probes(gene, probe_df, debug=False):
         print('...\n'*3)
     return gene_hits
 
-import collections
+
 def flatten(l):
     for el in l:
         if isinstance(el, collections.Iterable) and not isinstance(el, basestring):
