@@ -92,7 +92,7 @@ def flatten(l):
             yield el
 
 
-def filter_probes_based_on_blast(gene, blast_hits, probe_df, max_false_hits=7):
+def filter_probes_based_on_blast(gene, blast_hits, probe_df, max_false_hits=7, debug=False):
     ## Naively reduces probes to minimize global false hits for a given probeset
     gene = gene.strip()
     #Make an index of bad blast hits
@@ -117,6 +117,8 @@ def filter_probes_based_on_blast(gene, blast_hits, probe_df, max_false_hits=7):
     i2 = Counter([hit for probe in select_probes for hit in blast_hits[probe]])
     s2 = pd.Series({k:v for k,v in i2.iteritems()})
     s2.sort(ascending=False)
+    if debug:
+	print(s2[s2>1])
     if s2[bad_genes].max() > max_false_hits:
         raise Exception("Bad probeset for %s" % gene)
     passed_df = pd.concat([probe_df.ix[probe_df['Probe Name']==probe]
