@@ -4,6 +4,7 @@ import os
 import time
 from itertools import groupby
 from collections import defaultdict
+import re
 
 from Bio.Align.Applications import ClustalOmegaCommandline, MuscleCommandline
 from Bio import Entrez
@@ -37,18 +38,18 @@ class CDS(object):
                 raise Exception("CDS not retrieved")
             iterations += 1
             time.sleep(4)
-        try:
-            res = list(SeqIO.parse(handle, format='gb'))
-        except:
+        res = list(SeqIO.parse(handle, format='gb'))
+        if len(res) == 0:
             raise Exception("No Records found for %s" % self.gene)
         return res
 
     def align_seqs(self, seqs, aligner='muscle'):
         """
+        Given a number of CDS variants for a given gene, aligns the variants to find conserved sequences.
 
-        @param seqs:
-        @param aligner:
-        @return:
+        @param seqs: list of CDS variants as gi records
+        @param aligner: program to use for alignment
+        @return: list of CDS
         """
         import random
         r_num = ''.join(map(str, random.sample(range(100), 10)))
@@ -85,7 +86,6 @@ class CDS(object):
         @param handle: list of gene records of several genes
         @return: list of gene records for same gene
         """
-        import re
         reg_exp = re.compile('\(([^\)]+)\),')
         match = ['NM']
         if self.variants == True:
@@ -136,7 +136,7 @@ class CDS(object):
         if len(cds) > 1 and self.variants is False:
             raise Exception("Variants should not have been found.")
         if len(cds) > 1:
-            contiguous = self.align_seqs(cds)
+            contiguous = self.align_seqs(features)
         elif any(cds):
             contiguous = [str(cds[0].seq)]
         else:
@@ -156,5 +156,5 @@ class CDS(object):
 
 
 if __name__ == '__main__':
-    cds = CDS("Dnmt1").run()
-    print(cds)
+    cds = CDS("dazl").run()
+    print(len(''.join(cds['CDS List'])))
