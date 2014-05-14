@@ -1,13 +1,11 @@
-from functools import wraps
-import errno
-import os
 import signal
 from collections import Counter, defaultdict
-from Bio.Blast import NCBIWWW, NCBIXML
 import sys
 from time import sleep
-import pandas as pd
 import collections
+
+from Bio.Blast import NCBIWWW, NCBIXML
+import pandas as pd
 
 
 class TimeoutError(Exception):

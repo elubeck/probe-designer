@@ -1,11 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+from itertools import groupby
+from collections import defaultdict
+
+import pandas as pd
+
 import get_seq
 import biosearch_designer
-from itertools import groupby
-import pandas as pd
 import blaster
-from collections import defaultdict
+
 
 min_probes = 24
 
