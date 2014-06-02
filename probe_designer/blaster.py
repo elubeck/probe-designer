@@ -36,22 +36,22 @@ def probe_df_to_fasta(probe_df):
 
 def blast_query(query, max_time=120, max_iterations=10):
     # Loop with timeout while blasting incase server doesn't respond
-    q = None
+    res = None
     iterations = 0
     while True:
         with timeout(seconds=max_time):
             try:
-                q = NCBIWWW.qblast('blastn', 'refseq_rna', query,
-                                   entrez_query='"Mus musculus"[porgn:__txid10090]',
+                res = NCBIWWW.qblast('blastn', 'refseq_rna', query,
+                                   entrez_uery='"Mus musculus"[porgn:__txid10090]',
                                    word_size=7)
             except:
                 print("Failed on iteration %i" % iterations)
                 if iterations >= max_iterations:
-                    raise Exception("Timeout while blasting query")
+                    raise Exception("Timeout while blasting uery")
                 sys.stdout.flush()
                 sleep(5)
-        if q:
-            return q
+        if res:
+            return res
         iterations += 1
 
 
@@ -69,8 +69,8 @@ def parse_hits(handle, strand=-1):
 
 def blast_probes(gene, probe_df, debug=False):
     fasta_query = probe_df_to_fasta(probe_df)
-    q = blast_query(fasta_query)
-    gene_hits = parse_hits(q)
+    res = blast_query(fasta_query)
+    gene_hits = parse_hits()
     if debug:
         #Print the false hits for an entire gene
         i = Counter([hit for k, v in gene_hits.iteritems() for hit in v])
