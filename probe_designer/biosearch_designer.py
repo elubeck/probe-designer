@@ -6,11 +6,13 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select
 import pandas as pd
+import subprocess
 
 
 class Biosearch(object):
     def close(self):
         self.driver.close()
+        self.selenium.close()
     
     def design(self, cds, min_probes):
         probes = []
@@ -74,6 +76,7 @@ class Biosearch(object):
         elem.send_keys(Keys.RETURN)
 
     def __init__(self):
+        self.selenium = subprocess.Popen("java -jar ../lib/selenium-server-standalone-2.42.2.jar", shell=True) # Will probably only work on nix systems
         self.driver = webdriver.Firefox()
         self.driver.implicitly_wait(30) # seconds
         self.login()
