@@ -84,8 +84,7 @@ def main(target_genes):
     assert(isinstance(target_genes, list))
     passed_genes = {}
     for gene in target_genes:
-        handle = get_seq.get_mRNA_cdss(gene)
-        cds = get_seq.merge_cds(handle)
+        cds = get_seq.CDS(gene).run()
         if len(''.join(cds['CDS List'])) > (20*min_probes):
             passed_genes[gene] = cds
     biosearch = biosearch_designer.Biosearch()
@@ -104,3 +103,4 @@ def main(target_genes):
             
 if __name__ == '__main__':
     probes = main(['PNPLA5', 'Adamts8'])
+    print(probes)

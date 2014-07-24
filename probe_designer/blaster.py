@@ -42,12 +42,15 @@ def blast_query(query, max_time=120, max_iterations=10):
         with timeout(seconds=max_time):
             try:
                 res = NCBIWWW.qblast('blastn', 'refseq_rna', query,
-                                   entrez_uery='"Mus musculus"[porgn:__txid10090]',
+                                   entrez_query='"Mus musculus"[porgn:__txid10090]',
                                    word_size=7)
-            except:
+            except Exception as inst:
+                print(type(inst))     # the exception instance
+                print(inst.args)      # arguments stored in .args
+                print(inst)          # __str__ allows args to printed directly
                 print("Failed on iteration %i" % iterations)
                 if iterations >= max_iterations:
-                    raise Exception("Timeout while blasting uery")
+                    raise Exception("Timeout while blasting query")
                 sys.stdout.flush()
                 sleep(5)
         if res:
@@ -70,7 +73,7 @@ def parse_hits(handle, strand=-1):
 def blast_probes(gene, probe_df, debug=False):
     fasta_query = probe_df_to_fasta(probe_df)
     res = blast_query(fasta_query)
-    gene_hits = parse_hits()
+    gene_hits = parse_hits(res)
     if debug:
         #Print the false hits for an entire gene
         i = Counter([hit for k, v in gene_hits.iteritems() for hit in v])
@@ -116,7 +119,7 @@ def filter_probes_based_on_blast(gene, blast_hits, probe_df, max_false_hits=7, d
     s2 = pd.Series({k:v for k,v in i2.iteritems()})
     s2.sort(ascending=False)
     if debug:
-	print(s2[s2>1])
+        print(s2[s2>1])
     if s2[bad_genes].max() > max_false_hits:
         raise Exception("Bad probeset for %s" % gene)
     passed_df = pd.concat([probe_df.ix[probe_df['Probe Name']==probe]

@@ -12,8 +12,8 @@ import subprocess
 class Biosearch(object):
     def close(self):
         self.driver.close()
-        self.selenium.close()
-    
+        self.selenium.kill()
+
     def design(self, cds, min_probes):
         probes = []
         for gene, data in cds.iteritems():

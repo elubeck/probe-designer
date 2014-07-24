@@ -16,6 +16,11 @@ import numpy as np
 Entrez.email = 'elubeck@caltech.edu'
 
 class CDS(object):
+    """
+    CDS object for designing a gene.
+    If variants = True will fine only the probes that hit all variants of the gene.  This prevents probes from favoring
+    any one spliceoform.
+    """
 
     def mRNA_cds(self):
         """
@@ -155,6 +160,8 @@ class CDS(object):
         self.variants = variants
 
 
+cds = CDS("dazl").run()
+print(len(''.join(cds['CDS List'])))
 if __name__ == '__main__':
     cds = CDS("dazl").run()
     print(len(''.join(cds['CDS List'])))
