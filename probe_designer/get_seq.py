@@ -160,8 +160,6 @@ class CDS(object):
         self.variants = variants
 
 
-cds = CDS("dazl").run()
-print(len(''.join(cds['CDS List'])))
 if __name__ == '__main__':
     cds = CDS("dazl").run()
     print(len(''.join(cds['CDS List'])))
