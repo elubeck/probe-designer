@@ -7,23 +7,54 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select
 import pandas as pd
 import subprocess
-
+import dataset
+import arrow
+from random import getrandbits
 
 class Biosearch(object):
     def close(self):
         self.driver.close()
         self.selenium.kill()
 
+    def check_db(self, gene, masking):
+        res = self.table.find(Name=gene, Variants=self.variants, Masking=masking)
+        for item in res:
+            if arrow.get(item['Date']) >= self.date.replace(years = -1):
+                print("Found Existing Entry")
+                item['Probes'] = pd.DataFrame(list(self.p_table.find(ProbeID=item['ProbeID'])))
+                print("Got Probes")
+                return item
+        else:
+            return None
+
+
+    def write_db(self, probes):
+        probes['ProbeID'] = getrandbits(50)
+        probes['Date'] = arrow.now().datetime
+        probes['Variants'] = self.variants
+        probe_df = probes.pop('Probes')
+        self.table.insert(probes)
+        probe_df['ProbeID'] = probes['ProbeID']
+        for k, probe in probe_df.T.to_dict().iteritems():
+            self.p_table.insert(probe)
+
     def design(self, cds, min_probes):
         probes = []
         for gene, data in cds.iteritems():
+            probe_set =  [p for p in [self.check_db(gene, mask) for mask in [5,4,3]]
+                            if p is not None]
+            if probe_set:
+                print("Found {} probes for {}".format(len(probe_set), gene))
+                for probe in probe_set:
+                    probes.append(probe)
+                continue
             for n, seq in enumerate(data['CDS List']):
                 masking = 5
                 key_box = {'ProbeSetName': gene,
                            "SpacingLength": "2",
                            "TargetSequence": seq
                             }
-                selection = {'MaskingOrganism': "mouse",
+                selection = {'MaskingOrganism': self.organism,
                              "MaskingLevel": masking,
                              }
                 if len(seq) < 20:
@@ -55,7 +86,8 @@ class Biosearch(object):
                                    'Target Seq': seq, 'Probes': table,
                                    'CDS Region #': n, '# isoforms': data['# Isoforms'],
                                    })
-                    if len(table) >= min_probes or masking <= 3:
+                    self.write_db(probes[-1])
+                    if masking <= 3:
                         break
                     masking -= 1
                     self.driver.back()
@@ -75,7 +107,13 @@ class Biosearch(object):
         elem.send_keys('1%$3UuVMvH%e')
         elem.send_keys(Keys.RETURN)
 
-    def __init__(self):
+    def __init__(self, organism="mouse", variants=True):
+        self.organism = organism
+        self.variants = variants
+        self.db = dataset.connect("sqlite:///db/biosearch.db")
+        self.date = arrow.now()
+        self.table = self.db[organism]
+        self.p_table = self.db['probes']
         self.selenium = subprocess.Popen("java -jar ../lib/selenium-server-standalone-2.42.2.jar", shell=True) # Will probably only work on nix systems
         self.driver = webdriver.Firefox()
         self.driver.implicitly_wait(30) # seconds

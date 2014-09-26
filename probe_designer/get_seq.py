@@ -11,6 +11,8 @@ from Bio import Entrez
 from Bio import SeqIO
 from Bio import AlignIO
 import numpy as np
+import dataset
+import arrow
 
 
 Entrez.email = 'elubeck@caltech.edu'
@@ -45,7 +47,7 @@ class CDS(object):
             time.sleep(4)
         res = list(SeqIO.parse(handle, format='gb'))
         if len(res) == 0:
-            raise Exception("No Records found for %s" % self.gene)
+            print("No Records found for %s" % self.gene)
         return res
 
     def align_seqs(self, seqs, aligner='muscle'):
@@ -149,16 +151,42 @@ class CDS(object):
         return {"CDS List": contiguous,
                 '# Isoforms': len(cds)}
 
+    def check_db(self):
+        res = self.table.find(gene=self.gene, variants=self.variants)
+        for item in res:
+            if arrow.get(item['date']) >= self.date.replace(years = -1):
+                print("Passed")
+                item['CDS List'] = item['CDS List'].split(",")
+                return item
+        else:
+            return None
+
+    def save_db(self, cds):
+        cds['date'] = arrow.now().datetime
+        cds['variants'] = self.variants
+        cds['gene'] = self.gene
+        cds['CDS List'] = ",".join(cds['CDS List'])
+        self.table.insert(cds)
+
+
     def run(self):
+        db_ref = self.check_db()
+        if db_ref is not None:
+            print("Getting Entry from DB")
+            return db_ref
         handle = self.mRNA_cds()
         cds = self.merge_cds(handle,)
+        self.save_db(cds)
+        print("Storing Entry for {} in DB table for {}".format(self.gene, self.organism))
         return cds
 
     def __init__(self, gene, organism='"Mus musculus"[porgn:__txid10090]', variants=True):
         self.gene = gene
         self.organism = organism
         self.variants = variants
-
+        self.db = dataset.connect("sqlite:///db/cds.db")
+        self.table = self.db[self.organism]
+        self.date = arrow.utcnow()
 
 if __name__ == '__main__':
     cds = CDS("dazl").run()

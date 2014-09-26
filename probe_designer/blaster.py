@@ -40,7 +40,7 @@ def probe_df_to_fasta(probe_df):
     return fasta
 
 
-def blast_query(query, max_time=120, max_iterations=10):
+def blast_query(query, max_time=120, max_iterations=10, organism='"Mus musculus"[porgn:__txid10090]'):
     """
     Blast fasta query via NCBI qblast.
     Requires web access.  Qblast often times out so request is killed after max_time
@@ -56,7 +56,7 @@ def blast_query(query, max_time=120, max_iterations=10):
         with timeout(seconds=max_time):
             try:
                 res = NCBIWWW.qblast('blastn', 'refseq_rna', query,
-                                   entrez_query='"Mus musculus"[porgn:__txid10090]',
+                                   entrez_query=organism,
                                    word_size=7)
             except Exception as inst:
                 print(type(inst))     # the exception instance
@@ -90,7 +90,7 @@ def parse_hits(handle, strand=-1):
     return gene_hits
 
 
-def blast_probes(gene, probe_df, timeout=120, debug=False):
+def blast_probes(gene, probe_df, timeout=120, debug=False, organism='"Mus musculus"[porgn:__txid10090]'):
     """
     Runs entire blast routine for a given gene returning
     only the complementary hits for a probeset.
@@ -100,7 +100,7 @@ def blast_probes(gene, probe_df, timeout=120, debug=False):
     :return: dictionary of probe:[target...] hits for each probe
     """
     fasta_query = probe_df_to_fasta(probe_df)
-    res = blast_query(fasta_query, max_time=timeout, )
+    res = blast_query(fasta_query, max_time=timeout, organism=organism)
     gene_hits = parse_hits(res)
     if debug:
         #Print the false hits for an entire gene
@@ -121,7 +121,7 @@ def flatten(l):
             yield el
 
 
-def filter_probes_based_on_blast(gene, blast_hits, probe_df, n_probes=24, max_false_hits=7, debug=False):
+def filter_probes_based_on_blast(gene, blast_hits, probe_df, max_probes=24, min_probes=16, n_probes=24, max_false_hits=7, debug=False):
     """
     Attempts to pick the n_probes best probes for a given set of probes.
     :param gene: String - name of gene
@@ -151,14 +151,21 @@ def filter_probes_based_on_blast(gene, blast_hits, probe_df, n_probes=24, max_fa
     bad_hits = [(probe, sum(bad_genes.isin(probe_hits)), sum(extra_bad.isin(probe_hits)))
                  for probe, probe_hits in blast_hits.iteritems()]
     bad_hits = sorted(bad_hits, key=lambda x: (x[1], x[2]))
-    select_probes = map(lambda x:x[0], bad_hits[:n_probes])
-    i2 = Counter([hit for probe in select_probes for hit in blast_hits[probe]])
-    s2 = pd.Series({k:v for k,v in i2.iteritems()})
-    s2.sort(ascending=False)
-    if debug:
-        print(s2[s2>1])
-    if s2[bad_genes].max() > max_false_hits:
-        print("Bad probeset for %s" % gene)
+    # number of probes to design
+    n_probes = min((len(bad_hits), max_probes))
+    while n_probes >= min_probes:
+        select_probes = map(lambda x:x[0], bad_hits[:n_probes])
+        i2 = Counter([hit for probe in select_probes for hit in blast_hits[probe]])
+        s2 = pd.Series({k:v for k,v in i2.iteritems()})
+        s2.sort(ascending=False)
+        if debug:
+            print(s2[s2>1], "\n")
+        if s2[bad_genes].max() > max_false_hits:
+            print("Bad probeset for %s at %i probes\n" % (gene, n_probes))
+        else:
+            print("Good probeset designed for %s at %i probes\n" % (gene, n_probes))
+            break
+        n_probes -= 1
     passed_df = pd.concat([probe_df.ix[probe_df['Probe Name']==probe]
                            for probe in select_probes])
     return passed_df
