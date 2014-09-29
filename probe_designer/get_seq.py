@@ -1,4 +1,8 @@
 from __future__ import print_function, with_statement, division
+from future.builtins import str
+from future.builtins import map
+from future.builtins import range
+from future.builtins import object
 from operator import itemgetter
 import os
 import time
@@ -59,7 +63,7 @@ class CDS(object):
         @return: list of CDS
         """
         import random
-        r_num = ''.join(map(str, random.sample(range(100), 10)))
+        r_num = ''.join(map(str, random.sample(list(range(100)), 10)))
         in_file = "%s_temp_variant_cds.fasta" % r_num
         out_file = "%s_temp_variant_cds_aligned.fasta" % r_num
         with open(in_file, 'w') as f:
@@ -78,8 +82,8 @@ class CDS(object):
         passed = [i for i in no_blanks
                   if len(np.unique(ali_arr[:, i])) == 1]
         contiguous = []
-        for k, g in groupby(enumerate(passed), lambda (i,x):i-x):
-            item = map(itemgetter(1), g)
+        for k, g in groupby(enumerate(passed), lambda i_x:i_x[0]-i_x[1]):
+            item = list(map(itemgetter(1), g))
             if len(item) >= 20:
                 assert((ali_arr[0, item] == ali_arr[1, item]).all())
                 contiguous.append(''.join(ali_arr[0, item]))
@@ -109,12 +113,12 @@ class CDS(object):
         #               for k,v in groupby(passed.iteritems(),
         #                    lambda x: reg_exp.findall(x[0])[-1])}
         gene_query = defaultdict(list)
-        for desc, record in passed.iteritems():
+        for desc, record in list(passed.items()):
             gene_name = reg_exp.findall(desc)[-1]
             gene_query[gene_name.lower()].append(record)
         if len(gene_query) == 1:
-            return list(gene_query.values()[0])
-        elif self.gene.lower() in gene_query.keys():
+            return list(list(gene_query.values())[0])
+        elif self.gene.lower() in list(gene_query.keys()):
             return list(gene_query[self.gene.lower()])
         else:
             raise Exception("Too many genes returned from Entrez query for %s" %self.gene)

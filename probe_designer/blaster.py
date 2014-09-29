@@ -1,3 +1,4 @@
+from future.builtins import object
 import signal
 from collections import Counter, defaultdict
 import sys
@@ -104,8 +105,8 @@ def blast_probes(gene, probe_df, timeout=120, debug=False, organism='"Mus muscul
     gene_hits = parse_hits(res)
     if debug:
         #Print the false hits for an entire gene
-        i = Counter([hit for k, v in gene_hits.iteritems() for hit in v])
-        s = pd.Series({k:v for k,v in i.iteritems() if v>1})
+        i = Counter([hit for k, v in gene_hits.items() for hit in v])
+        s = pd.Series({k:v for k,v in i.items() if v>1})
         s.sort(ascending=False)
         print(gene, s)
         print('...\n'*3)
@@ -134,8 +135,8 @@ def filter_probes_based_on_blast(gene, blast_hits, probe_df, max_probes=24, min_
     """
     gene = gene.strip()
     #Make an index of bad blast hits
-    i = Counter([hit for k, v in blast_hits.iteritems() for hit in v])
-    s = pd.Series({k:v for k,v in i.iteritems()})
+    i = Counter([hit for k, v in blast_hits.items() for hit in v])
+    s = pd.Series({k:v for k,v in i.items()})
     s.sort(ascending=False)
     p = []
     for desc in s.index:
@@ -149,14 +150,14 @@ def filter_probes_based_on_blast(gene, blast_hits, probe_df, max_probes=24, min_
     bad = s[s.index[p]]
     extra_bad = bad[bad > 2].index
     bad_hits = [(probe, sum(bad_genes.isin(probe_hits)), sum(extra_bad.isin(probe_hits)))
-                 for probe, probe_hits in blast_hits.iteritems()]
+                 for probe, probe_hits in blast_hits.items()]
     bad_hits = sorted(bad_hits, key=lambda x: (x[1], x[2]))
     # number of probes to design
     n_probes = min((len(bad_hits), max_probes))
     while n_probes >= min_probes:
-        select_probes = map(lambda x:x[0], bad_hits[:n_probes])
+        select_probes = [x[0] for x in bad_hits[:n_probes]]
         i2 = Counter([hit for probe in select_probes for hit in blast_hits[probe]])
-        s2 = pd.Series({k:v for k,v in i2.iteritems()})
+        s2 = pd.Series({k:v for k,v in i2.items()})
         s2.sort(ascending=False)
         if debug:
             print(s2[s2>1], "\n")

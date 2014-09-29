@@ -1,4 +1,6 @@
 from __future__ import print_function, with_statement, division
+from future.builtins import str
+from future.builtins import object
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
@@ -35,12 +37,12 @@ class Biosearch(object):
         probe_df = probes.pop('Probes')
         self.table.insert(probes)
         probe_df['ProbeID'] = probes['ProbeID']
-        for k, probe in probe_df.T.to_dict().iteritems():
+        for k, probe in probe_df.T.to_dict().items():
             self.p_table.insert(probe)
 
     def design(self, cds, min_probes):
         probes = []
-        for gene, data in cds.iteritems():
+        for gene, data in cds.items():
             probe_set =  [p for p in [self.check_db(gene, mask) for mask in [5,4,3]]
                             if p is not None]
             if probe_set:
@@ -60,11 +62,11 @@ class Biosearch(object):
                 if len(seq) < 20:
                     continue
                 while True:
-                    for k,v in key_box.iteritems():
+                    for k,v in key_box.items():
                         elem = self.driver.find_element_by_name(k)
                         elem.clear()
                         elem.send_keys(v)
-                    for k, v in selection.iteritems():
+                    for k, v in selection.items():
                         if k == 'MaskingLevel':
                             v = str(masking)
                         select = Select(self.driver.find_element_by_name(k))

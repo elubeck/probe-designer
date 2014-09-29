@@ -1,5 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+from __future__ import division, print_function
+from future.builtins import str
+from future.builtins import zip
+from future.builtins import map
+from past.utils import old_div
 from itertools import groupby
 from collections import defaultdict
 from docopt import docopt
@@ -21,8 +26,8 @@ def maximize_masking(probes, max_probes=24):
             if n_probes >= max_probes:
                 passed[k][k1] = v1
     p2 = {}
-    for gene, m_dist in passed.iteritems():
-        highest_key = sorted(m_dist.keys(), reverse=True)[0]
+    for gene, m_dist in passed.items():
+        highest_key = sorted(list(m_dist.keys()), reverse=True)[0]
         p2[gene] = m_dist[highest_key]
     return p2
 
@@ -30,20 +35,20 @@ def maximize_masking(probes, max_probes=24):
 def flatten_probes(p2):
     # Flatten out probe lists
     flat_probes = {}
-    for gene, cds_psets in p2.iteritems():
+    for gene, cds_psets in p2.items():
         for probeset in cds_psets:
-            for k, v in probeset.iteritems():
+            for k, v in probeset.items():
                 if any([k == 'Probes', k == 'Target Seq']):
                     continue
                 probeset['Probes'][k] = v
-        p_list = map(lambda x: x['Probes'], cds_psets)
+        p_list = [x['Probes'] for x in cds_psets]
         probes = pd.concat(p_list, ignore_index=True)
         flat_probes[gene] = probes
 
     # Give each probe a name
-    for gene, probes in flat_probes.iteritems():
-        name_tuple = zip(probes['Name'], probes['CDS Region #'].map(str), probes['Probe Position*'].map(str))
-        probes['Probe Name'] = map('-'.join, name_tuple)
+    for gene, probes in flat_probes.items():
+        name_tuple = list(zip(probes['Name'], probes['CDS Region #'].map(str), probes['Probe Position*'].map(str)))
+        probes['Probe Name'] = list(map('-'.join, name_tuple))
     return flat_probes
 
 
@@ -77,7 +82,7 @@ def main(target_genes, max_probes=24, min_probes=24, timeout=120, debug=False, p
         print("Writing to file")
         with open(str(write_path), 'w') as f:
             print("Writing to file2")
-            for gene, cds in passed_genes.iteritems():
+            for gene, cds in passed_genes.items():
                 f.write(">{} from {}\n".format(gene, organism))
                 f.write("{}\n".format(cds))
         print("Writing to file3")
@@ -109,8 +114,8 @@ def main(target_genes, max_probes=24, min_probes=24, timeout=120, debug=False, p
             probe_df['CDS Region #'] = p_set['CDS Region #']
             if len(probe_df) < min_probes:
                 continue
-            name_tuple = zip(probe_df['Name'], probe_df['CDS Region #'].map(str), probe_df['Probe Position*'].map(str))
-            probe_df['Probe Name'] = map('-'.join, name_tuple)
+            name_tuple = list(zip(probe_df['Name'], probe_df['CDS Region #'].map(str), probe_df['Probe Position*'].map(str)))
+            probe_df['Probe Name'] = list(map('-'.join, name_tuple))
             try:
                 b_res = blaster.blast_probes(gene, probe_df, timeout=timeout, debug=debug, organism=cds_org)
             except:
@@ -118,10 +123,10 @@ def main(target_genes, max_probes=24, min_probes=24, timeout=120, debug=False, p
                 continue
             passed = blaster.filter_probes_based_on_blast(gene, b_res, probe_df, max_probes=max_probes,
                                                           min_probes=min_probes, debug=debug,
-                                                          max_false_hits=min_probes / 2)
+                                                          max_false_hits=old_div(min_probes, 2))
             g_set[gene][p_set['Masking']] = passed
             passed['Masking'] = p_set['Masking']
-            for n, line in passed.T.to_dict().iteritems():
+            for n, line in passed.T.to_dict().items():
                 p_table.insert(line)
             print("probeset added to table")
             print("Done Lvl")
@@ -160,24 +165,24 @@ Options:
 genes = """grin1, grin2a, atp2b2, crmp1, bbc3, adora1, agrn, apoe, c19orf20, calb1, clock,
         dlg4, kifc2, mapk11, mib2, OXR1, pick1, pctk3, pyroxd1, aifm3, bad, bcl2, bok, app,
         caskin2, grin2c, homer1, homer3, kcnip3, nlgn2, nrgn, nrxn3, amh, c4orf48, rest,
-        met, pten"""
+        met, pten, gad1, efemp1, txnip, hcrtr1, penk, pnoc, crh"""
 
-genes = """nkx6-1
-        ,pdx1
-        ,mafb
-        ,pax6
-        ,ptf1a
-        ,sox9
-        ,ins
-        ,gcg
-        """
+# genes = """nkx6-1
+#         ,pdx1
+#         ,mafb
+#         ,pax6
+#         ,ptf1a
+#         ,sox9
+#         ,ins
+#         ,gcg
+#         """
 target_genes = [x.strip() for x in genes.strip(',').split(",")]
 min_probes = 24
 debug = True
 timeout = 180
 probes = main(target_genes, min_probes=12, max_probes=24,
               timeout=timeout, debug=debug, organism='human')
-for gene, probes in probes['Passed'].iteritems():
+for gene, probes in probes['Passed'].items():
     try:
         os.mkdir('passed_probes2p1')
     except:
@@ -208,7 +213,7 @@ if __name__ == '__main__':
         organism = 'mouse'
     probes = main(target_genes, min_probes, timeout, debug, organism)
     if args['--output'] is not False:
-        for gene, probes in probes['Passed'].iteritems():
+        for gene, probes in probes['Passed'].items():
             try:
                 os.mkdir('passed_probes')
             except:
