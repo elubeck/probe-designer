@@ -50,6 +50,8 @@ class Biosearch(object):
                 for probe in probe_set:
                     probes.append(probe)
                 continue
+            if self.is_open is False:
+                self.open()
             for n, seq in enumerate(data['CDS List']):
                 masking = 5
                 key_box = {'ProbeSetName': gene,
@@ -100,6 +102,12 @@ class Biosearch(object):
                 self.driver.refresh()
         return probes
 
+    def open(self):
+        self.selenium = subprocess.Popen("java -jar ../lib/selenium-server-standalone-2.42.2.jar", shell=True) # Will probably only work on nix systems
+        self.driver = webdriver.Firefox()
+        self.driver.implicitly_wait(30) # seconds
+        self.login()
+        self.is_open = True
 
     def login(self):
         self.driver.get("https://www.biosearchtech.com/stellarisdesigner/default.aspx")
@@ -116,7 +124,4 @@ class Biosearch(object):
         self.date = arrow.now()
         self.table = self.db[organism]
         self.p_table = self.db['probes']
-        self.selenium = subprocess.Popen("java -jar ../lib/selenium-server-standalone-2.42.2.jar", shell=True) # Will probably only work on nix systems
-        self.driver = webdriver.Firefox()
-        self.driver.implicitly_wait(30) # seconds
-        self.login()
+        self.is_open = False
