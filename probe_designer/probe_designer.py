@@ -15,7 +15,7 @@ import biosearch_designer
 import blaster
 import arrow
 from pathlib import Path
-
+import dataset
 
 def maximize_masking(probes, max_probes=24):
     passed = defaultdict(dict)
@@ -52,6 +52,36 @@ def flatten_probes(p2):
     return flat_probes
 
 
+def blast_probes(cds_org, debug, max_probes, min_probes, organism, probes, timeout):
+    g_set = defaultdict(dict)
+    db = dataset.connect("sqlite:///db/probes.db")
+    p_table = db[organism]
+    for gene, masked_probes in groupby(probes, key=lambda x: x['Name']):
+        for p_set in sorted(masked_probes, key=lambda x: x['Masking'], reverse=True):
+            probe_df = p_set['Probes']
+            probe_df['Name'] = gene
+            probe_df['CDS Region #'] = p_set['CDS Region #']
+            if len(probe_df) < min_probes:
+                continue
+            name_tuple = list(
+                zip(probe_df['Name'], probe_df['CDS Region #'].map(str), probe_df['Probe Position*'].map(str)))
+            probe_df['Probe Name'] = list(map('-'.join, name_tuple))
+            try:
+                b_res = blaster.blast_probes(gene, probe_df, timeout=timeout, debug=debug, organism=cds_org)
+            except:
+                print("Blast Failed for {}".format(gene))
+                continue
+            passed = blaster.filter_probes_based_on_blast(gene, b_res, probe_df, max_probes=max_probes,
+                                                          min_probes=min_probes, debug=debug,
+                                                          max_false_hits=old_div(min_probes, 2))
+            g_set[gene][p_set['Masking']] = passed
+            passed['Masking'] = p_set['Masking']
+            for n, line in passed.T.to_dict().items():
+                p_table.insert(line)
+            print("Probeset added to table")
+    return g_set
+
+
 def main(target_genes, max_probes=24, min_probes=24, timeout=120, debug=False, parallel=True, organism="mouse"):
     if "mouse" == organism.lower():
         cds_org = '"Mus musculus"[porgn:__txid10090]'
@@ -70,8 +100,8 @@ def main(target_genes, max_probes=24, min_probes=24, timeout=120, debug=False, p
                 passed_genes[gene] = cds
             else:
                 print("CDS too short of %s at %int" % (gene, len(''.join(cds['CDS List']))))
-        except:
-            print("No probes could be designed towards CDS of %s" % gene)
+        except get_seq.CDSError as e:
+            print(e)
     if debug:
         write_folder = Path("debug").joinpath("cds")
         try:
@@ -102,35 +132,7 @@ def main(target_genes, max_probes=24, min_probes=24, timeout=120, debug=False, p
     # if len(probes)>min_probes}
     blasted_probes = {}
     passed_probes = {}
-    g_set = defaultdict(dict)
-    print("Breakpoint")
-    import dataset
-    db = dataset.connect("sqlite:///db/probes.db")
-    p_table = db[organism]
-    for gene, masked_probes in groupby(probes, key=lambda x: x['Name']):
-        for p_set in sorted(masked_probes, key=lambda x: x['Masking'], reverse=True):
-            probe_df = p_set['Probes']
-            probe_df['Name'] = gene
-            probe_df['CDS Region #'] = p_set['CDS Region #']
-            if len(probe_df) < min_probes:
-                continue
-            name_tuple = list(zip(probe_df['Name'], probe_df['CDS Region #'].map(str), probe_df['Probe Position*'].map(str)))
-            probe_df['Probe Name'] = list(map('-'.join, name_tuple))
-            try:
-                b_res = blaster.blast_probes(gene, probe_df, timeout=timeout, debug=debug, organism=cds_org)
-            except:
-                print("Blast Failed for {}".format(gene))
-                continue
-            passed = blaster.filter_probes_based_on_blast(gene, b_res, probe_df, max_probes=max_probes,
-                                                          min_probes=min_probes, debug=debug,
-                                                          max_false_hits=old_div(min_probes, 2))
-            g_set[gene][p_set['Masking']] = passed
-            passed['Masking'] = p_set['Masking']
-            for n, line in passed.T.to_dict().items():
-                p_table.insert(line)
-            print("probeset added to table")
-            print("Done Lvl")
-    return g_set
+    return blast_probes(cds_org, debug, max_probes, min_probes, organism, probes, timeout)
     # return {'Blast': blasted_probes,
     #         'Passed': passed_probes}
 
@@ -144,6 +146,27 @@ def main(target_genes, max_probes=24, min_probes=24, timeout=120, debug=False, p
     # except:
     # print("Failed to blast probes for %s" %gene)
 
+
+def get_probes(gene, organism, masking):
+    db = dataset.connect("sqlite:///db/probes.db")
+    p_table = db[organism]
+    return p_table.find(Name=gene, masking=masking)
+
+def get_optimal_probes(gene, organism, min_probes=12, max_probes=24):
+    stored_probes= None
+    for masking in (5,4,3):
+        probes = list(get_probes(gene, organism, masking))
+        if len(probes) == max_probes:
+            return probes
+        if len(probes) < min_probes:
+            continue
+        if stored_pset is not None:
+            if len(stored_probes) - 2 > len(probes):
+                stored_probes = probes
+        stored_probes = probes
+    if stored_probes is not None:
+        return stored_probes
+    raise Exception("No good probeset for {}".format(gene))
 
 doc = """
 Usage: probe_designer.py TARGETS [-o=OUTPUT] [-m=MIN_PROBES] [-d=DEBUG] [-t=TIMEOUT] [-i=INPUT] [-or=ORGANISM]
@@ -162,10 +185,10 @@ Options:
 # genes = """nrn1,s100a10,rbpms,fbxo2,nefl,tppp3,eg435376,sncg,rbpms2,rlbp1l2,slc17a6,chrnb3,bc089491,cpne9,tubb3,opn4,
 # nppb,adcyap1,1700011l03Rik,prph,ctxn3,cd24a,prkcq,cdkn1c,gm687,trhde,igf1,rbms3,gm527,ndp,cyp1b1,rlbp1,
 # kcnj13,rdh5,rpe65,rgr,efemp1,bbs2,bbs4"""
-genes = """grin1, grin2a, atp2b2, crmp1, bbc3, adora1, agrn, apoe, c19orf20, calb1, clock,
-        dlg4, kifc2, mapk11, mib2, OXR1, pick1, pctk3, pyroxd1, aifm3, bad, bcl2, bok, app,
-        caskin2, grin2c, homer1, homer3, kcnip3, nlgn2, nrgn, nrxn3, amh, c4orf48, rest,
-        met, pten, gad1, efemp1, txnip, hcrtr1, penk, pnoc, crh"""
+# genes = """grin1, grin2a, atp2b2, crmp1, bbc3, adora1, agrn, apoe, c19orf20, calb1, clock,
+#         dlg4, kifc2, mapk11, mib2, OXR1, pick1, pctk3, pyroxd1, aifm3, bad, bcl2, bok, app,
+#         caskin2, grin2c, homer1, homer3, kcnip3, nlgn2, nrgn, nrxn3, amh, c4orf48, rest,
+#         met, pten, gad1, efemp1, txnip, hcrtr1, penk, pnoc, crh"""
 
 # genes = """nkx6-1
 #         ,pdx1
@@ -176,7 +199,28 @@ genes = """grin1, grin2a, atp2b2, crmp1, bbc3, adora1, agrn, apoe, c19orf20, cal
 #         ,ins
 #         ,gcg
 #         """
-target_genes = [x.strip() for x in genes.strip(',').split(",")]
+genes = """ins, pdx1, mafa, mafb, nkx6.1, nkx2.2, islet1, pax6, pax4, nd1,
+pcsk1, sur1, ldha, mvk, hk1, hk2,
+bip, atf5, atf6b, prdx4, ddit3, ero1l, gcg, brn, arx,
+grehlin, sox9, hnf6, hes1, ngn3, drd2, rit2, ets1, plagl1, bhlhe40, hmgb3, asxl3,
+esrrb, slca1, slca2, gck, hspa5, slc16a1, slc16a4, sst, ppy, neurog3"""
+"""Notes
+- assuming esrrb1 is esrrb
+- assurming glut1 is SLC2A1
+- assuming glut2 is SLC2A2
+- assuming hk4 is GCK
+- assuming bip is HSPA5
+- assuming mct1 is SLC16A1
+- assuming mct4 is SLC16A4
+- assuming kir6.2 is KCNJ11
+- assuming glucagon is gcg
+- assuming somatostatin is SST
+- assuming pancreatic polypetide is PPY
+- assuming ngn3 is NEUROG3
+- I don't know what BRN is
+"""
+
+target_genes = [x.strip() for x in genes.split(",")]
 min_probes = 24
 debug = True
 timeout = 180
@@ -184,10 +228,10 @@ probes = main(target_genes, min_probes=12, max_probes=24,
               timeout=timeout, debug=debug, organism='human')
 for gene, probes in probes['Passed'].items():
     try:
-        os.mkdir('passed_probes2p1')
+        os.mkdir('passed_probes3p3')
     except:
         pass
-    out_path = os.path.join('passed_probes2p1', gene + '.csv')
+    out_path = os.path.join('passed_probes3p3', gene + '.csv')
     probes.to_csv(out_path)
 
 if __name__ == '__main__':
