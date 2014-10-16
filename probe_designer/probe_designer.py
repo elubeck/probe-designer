@@ -127,24 +127,7 @@ def main(target_genes, max_probes=24, min_probes=24, timeout=120, debug=False, p
             pass
         write_path = write_folder.joinpath("{}.csv".format(arrow.now()))
         pd.DataFrame(probes).to_csv(str(write_path))
-    # good_probes = maximize_masking(probes, max_probes)
-    # flat_probes = {gene:probes for gene, probes in flatten_probes(p_set).iteritems()
-    # if len(probes)>min_probes}
-    blasted_probes = {}
-    passed_probes = {}
     return blast_probes(cds_org, debug, max_probes, min_probes, organism, probes, timeout)
-    # return {'Blast': blasted_probes,
-    #         'Passed': passed_probes}
-
-    #
-    # for gene, probe_df in flat_probes.iteritems():
-    # try:
-    # blasted_probes[gene] = blaster.blast_probes(gene, probe_df, timeout=timeout, debug=debug, organism=cds_org)
-    # passed_probes[gene] = blaster.filter_probes_based_on_blast(gene, blasted_probes[gene], probe_df,
-    # max_false_hits=8, debug=debug, max_probes=24,
-    # min_probes=16)
-    # except:
-    # print("Failed to blast probes for %s" %gene)
 
 
 def get_probes(gene, organism, masking):
