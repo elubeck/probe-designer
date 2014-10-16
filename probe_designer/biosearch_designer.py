@@ -45,7 +45,7 @@ class Biosearch(object):
             probe_set =  [p for p in [self.check_db(gene, mask) for mask in [5,4,3]]
                             if p is not None]
             if probe_set:
-                print("Found probeset for {}".format(len(probe_set), gene))
+                print("Found probeset for {}".format(gene))
                 for probe in probe_set:
                     probes.append(probe)
                 continue
