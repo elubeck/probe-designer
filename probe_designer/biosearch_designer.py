@@ -24,7 +24,6 @@ class Biosearch(object):
         for item in res:
             if arrow.get(item['Date']) >= self.date.replace(years = -1):
                 item['Probes'] = pd.DataFrame(list(self.p_table.find(ProbeID=item['ProbeID'])))
-                print("Found Existing Entry for {} at masking {}".format(gene, masking))
                 return item
         else:
             return None
@@ -46,7 +45,7 @@ class Biosearch(object):
             probe_set =  [p for p in [self.check_db(gene, mask) for mask in [5,4,3]]
                             if p is not None]
             if probe_set:
-                print("Found {} probes for {}".format(len(probe_set), gene))
+                print("Found probeset for {}".format(len(probe_set), gene))
                 for probe in probe_set:
                     probes.append(probe)
                 continue
