@@ -15,16 +15,16 @@ from random import getrandbits
 
 class Biosearch(object):
     def close(self):
-        self.driver.close()
-        self.selenium.kill()
+        if self.is_open:
+            self.driver.close()
+            self.selenium.kill()
 
     def check_db(self, gene, masking):
         res = self.table.find(Name=gene, Variants=self.variants, Masking=masking)
         for item in res:
             if arrow.get(item['Date']) >= self.date.replace(years = -1):
-                print("Found Existing Entry")
                 item['Probes'] = pd.DataFrame(list(self.p_table.find(ProbeID=item['ProbeID'])))
-                print("Got Probes")
+                print("Found Existing Entry for {} at masking {}".format(gene, masking))
                 return item
         else:
             return None
@@ -103,7 +103,7 @@ class Biosearch(object):
         return probes
 
     def open(self):
-        self.selenium = subprocess.Popen("java -jar ../lib/selenium-server-standalone-2.42.2.jar", shell=True) # Will probably only work on nix systems
+        self.selenium = subprocess.Popen("java -jar ../lib/selenium-server-standalone-2.43.1.jar", shell=True) # Will probably only work on nix systems
         self.driver = webdriver.Firefox()
         self.driver.implicitly_wait(30) # seconds
         self.login()
