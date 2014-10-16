@@ -21,6 +21,10 @@ import arrow
 
 Entrez.email = 'elubeck@caltech.edu'
 
+class CDSError(Exception):
+    def __init__(self, exception):
+        Exception.__init__(self, exception)
+
 class CDS(object):
     """
     CDS object for designing a gene.
@@ -118,10 +122,18 @@ class CDS(object):
             gene_query[gene_name.lower()].append(record)
         if len(gene_query) == 1:
             return list(list(gene_query.values())[0])
-        elif self.gene.lower() in list(gene_query.keys()):
-            return list(gene_query[self.gene.lower()])
-        else:
-            raise Exception("Too many genes returned from Entrez query for %s" %self.gene)
+        elif len(gene_query) > 1:
+            replaced_name = self.gene.lower().replace(".", "-")
+            if self.gene.lower() in list(gene_query.keys()):
+                return list(gene_query[self.gene.lower()])
+            # This is a hacky fix.  Sometimes . is turned into -
+            elif replaced_name in list(gene_query.keys()):
+                return list(gene_query[replaced_name])
+            else:
+                raise CDSError("Too many genes returned from Entrez query for {}".format(self.gene))
+        elif len(gene_query) == 0:
+            raise CDSError("No genes found for {}".format(self.gene))
+        raise Exception("This shouldn't have happened for {}".format(self.gene))
 
     def extract_feature(self, cds_list, feature_query='CDS'):
         """
@@ -159,7 +171,6 @@ class CDS(object):
         res = self.table.find(gene=self.gene, variants=self.variants)
         for item in res:
             if arrow.get(item['date']) >= self.date.replace(years = -1):
-                print("Passed")
                 item['CDS List'] = item['CDS List'].split(",")
                 return item
         else:
@@ -176,7 +187,7 @@ class CDS(object):
     def run(self):
         db_ref = self.check_db()
         if db_ref is not None:
-            print("Getting Entry from DB")
+            print("Getting Entry from DB for {}".format(self.gene))
             return db_ref
         handle = self.mRNA_cds()
         cds = self.merge_cds(handle,)
