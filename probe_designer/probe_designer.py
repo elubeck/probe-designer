@@ -58,6 +58,12 @@ def blast_probes(cds_org, debug, max_probes, min_probes, organism, probes, timeo
     p_table = db[organism]
     for gene, masked_probes in groupby(probes, key=lambda x: x['Name']):
         for p_set in sorted(masked_probes, key=lambda x: x['Masking'], reverse=True):
+
+            #Check if probe set already exists in db
+            if any(p_table.find(Name=gene, Masking=p_set['Masking'])):
+                print("Getting probeset from DB for {} at masking {}".format(gene, p_set['Masking']))
+                g_set[gene][p_set['Masking']] = pd.DataFrame(list(p_table.find(Name=gene, Masking=p_set['Masking'])))
+                continue
             probe_df = p_set['Probes']
             probe_df['Name'] = gene
             probe_df['CDS Region #'] = p_set['CDS Region #']
@@ -182,7 +188,7 @@ Options:
 #         ,ins
 #         ,gcg
 #         """
-genes = """ins, pdx1, mafa, mafb, nkx6.1, nkx2.2, islet1, pax6, pax4, nd1,
+genes = """ins, pdx1, mafa, mafb, nkx6.1, nkx2.2, isl1, pax6, pax4, nd1,
 pcsk1, sur1, ldha, mvk, hk1, hk2,
 bip, atf5, atf6b, prdx4, ddit3, ero1l, gcg, brn, arx,
 grehlin, sox9, hnf6, hes1, ngn3, drd2, rit2, ets1, plagl1, bhlhe40, hmgb3, asxl3,
