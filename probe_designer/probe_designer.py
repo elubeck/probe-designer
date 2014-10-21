@@ -16,6 +16,7 @@ import blaster
 import arrow
 from pathlib import Path
 import dataset
+import traceback
 
 def maximize_masking(probes, max_probes=24):
     passed = defaultdict(dict)
@@ -73,13 +74,16 @@ def blast_probes(cds_org, debug, max_probes, min_probes, organism, probes, timeo
                 zip(probe_df['Name'], probe_df['CDS Region #'].map(str), probe_df['Probe Position*'].map(str)))
             probe_df['Probe Name'] = list(map('-'.join, name_tuple))
             try:
+                #First Blast
                 b_res = blaster.blast_probes(gene, probe_df, timeout=timeout, debug=debug, organism=cds_org)
-            except:
+                #Find probeset based on blast
+                passed = blaster.filter_probes_based_on_blast(gene, b_res, probe_df, max_probes=max_probes,
+                                                              min_probes=min_probes, debug=debug,
+                                                              max_false_hits=old_div(min_probes, 2))
+            except blaster.BlastError as e:
+                print(traceback.format_exc())
                 print("Blast Failed for {}".format(gene))
                 continue
-            passed = blaster.filter_probes_based_on_blast(gene, b_res, probe_df, max_probes=max_probes,
-                                                          min_probes=min_probes, debug=debug,
-                                                          max_false_hits=old_div(min_probes, 2))
             g_set[gene][p_set['Masking']] = passed
             passed['Masking'] = p_set['Masking']
             for n, line in passed.T.to_dict().items():
@@ -107,6 +111,7 @@ def main(target_genes, max_probes=24, min_probes=24, timeout=120, debug=False, p
             else:
                 print("CDS too short of %s at %int" % (gene, len(''.join(cds['CDS List']))))
         except get_seq.CDSError as e:
+            print(traceback.format_exc())
             print(e)
     if debug:
         write_folder = Path("debug").joinpath("cds")

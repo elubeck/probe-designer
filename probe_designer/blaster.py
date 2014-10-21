@@ -65,7 +65,7 @@ def blast_query(query, max_time=120, max_iterations=10, organism='"Mus musculus"
                 print(inst)          # __str__ allows args to printed directly
                 print("Failed on iteration %i" % iterations)
                 if iterations >= max_iterations:
-                    raise Exception("Timeout while blasting query")
+                    raise BlastError("Timeout while blasting query")
                 sys.stdout.flush()
                 sleep(5)
         if res:
@@ -121,6 +121,9 @@ def flatten(l):
         else:
             yield el
 
+class BlastError(Exception):
+    def __init__(self, exception):
+        Exception.__init__(exception)
 
 def filter_probes_based_on_blast(gene, blast_hits, probe_df, max_probes=24, min_probes=16, n_probes=24, max_false_hits=7, debug=False):
     """
@@ -139,6 +142,7 @@ def filter_probes_based_on_blast(gene, blast_hits, probe_df, max_probes=24, min_
     s = pd.Series({k:v for k,v in i.items()})
     s.sort(ascending=False)
     p = []
+    #Determines a gene is a match if its abbreviation is found in description and is the same as the given name
     for desc in s.index:
         for name in flatten(map(lambda x:x.split(")"), desc.split("("))):
             if name.lower() == gene.lower():
@@ -167,6 +171,8 @@ def filter_probes_based_on_blast(gene, blast_hits, probe_df, max_probes=24, min_
             print("Good probeset designed for %s at %i probes\n" % (gene, n_probes))
             break
         n_probes -= 1
+    else:
+        raise BlastError("Couldn't Design at least {} probes for {}".formate(min_probes, gene))
     passed_df = pd.concat([probe_df.ix[probe_df['Probe Name']==probe]
                            for probe in select_probes])
     return passed_df
