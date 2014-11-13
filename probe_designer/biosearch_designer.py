@@ -55,6 +55,7 @@ class Biosearch(object):
                 masking = 5
                 key_box = {'ProbeSetName': gene,
                            "SpacingLength": "2",
+                           "ProbesNumber": "200",
                            "TargetSequence": seq
                             }
                 selection = {'MaskingOrganism': self.organism,

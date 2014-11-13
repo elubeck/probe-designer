@@ -123,7 +123,7 @@ def flatten(l):
 
 class BlastError(Exception):
     def __init__(self, exception):
-        Exception.__init__(exception)
+        Exception.__init__(self, exception)
 
 def filter_probes_based_on_blast(gene, blast_hits, probe_df, max_probes=24, min_probes=16, n_probes=24, max_false_hits=7, debug=False):
     """
@@ -151,13 +151,19 @@ def filter_probes_based_on_blast(gene, blast_hits, probe_df, max_probes=24, min_
         else:
             p.append(True)
     bad_genes = s.index[p]
-    bad = s[s.index[p]]
-    extra_bad = bad[bad > 2].index
-    bad_hits = [(probe, sum(bad_genes.isin(probe_hits)), sum(extra_bad.isin(probe_hits)))
-                 for probe, probe_hits in blast_hits.items()]
-    bad_hits = sorted(bad_hits, key=lambda x: (x[1], x[2]))
+    bad = s[bad_genes]
+    #extra_bad = bad[bad > 2].index
+    #Tallies up in order of how many incorrect genes are hit all the bad hits
+    eb = [bad[bad > i].index for i in range(1, 10)]
+    bad_hits = [ [p] + [sum(badi.isin(hits)) for badi in eb]
+           for p, hits in blast_hits.items()]
+    #Creates tuple=(probe_name, # of off target hits, # of 2 off target hits )
+    sorted(bad_hits, key=lambda x: [x[i] for i in range(1, 10)])
+    # bad_hits = [(probe, sum(bad_genes.isin(probe_hits)), sum(extra_bad.isin(probe_hits)))
+    #              for probe, probe_hits in blast_hits.items()]
+    # bad_hits = sorted(bad_hits, key=lambda x: (x[1], x[2]))
     # number of probes to design
-    n_probes = min((len(bad_hits), max_probes))
+    n_probes = min((len(blast_hits), max_probes))
     while n_probes >= min_probes:
         select_probes = [x[0] for x in bad_hits[:n_probes]]
         i2 = Counter([hit for probe in select_probes for hit in blast_hits[probe]])
@@ -172,7 +178,34 @@ def filter_probes_based_on_blast(gene, blast_hits, probe_df, max_probes=24, min_
             break
         n_probes -= 1
     else:
-        raise BlastError("Couldn't Design at least {} probes for {}".formate(min_probes, gene))
+        raise BlastError("Couldn't Design at least {} probes for {}".format(min_probes, gene))
     passed_df = pd.concat([probe_df.ix[probe_df['Probe Name']==probe]
                            for probe in select_probes])
     return passed_df
+
+
+def filter_probes2(gene, blast_hits, probe_df, max_probes=24, min_probes=16, n_probes=24, max_false_hits=7, debug=False):
+    """
+    Attempts to pick the n_probes best probes for a given set of probes.
+    :param gene: String - name of gene
+    :param blast_hits: dict probe:[target...] for each probe in probe_df
+    :param probe_df: Pandas DataFrame of Probes
+    :param n_probes: # of probes to design for gene
+    :param max_false_hits: Maximum # of off target hits for a given probeset
+    :param debug: Whether to print filtering
+    :return:
+    """
+    gene = gene.strip()
+    #Make an index of bad blast hits
+    i = Counter([hit for k, v in blast_hits.items() for hit in v])
+    s = pd.Series({k:v for k,v in i.items()})
+    s.sort(ascending=False)
+    p = []
+    #Determines a gene is a match if its abbreviation is found in description and is the same as the given name
+    for desc in s.index:
+        for name in flatten(map(lambda x:x.split(")"), desc.split("("))):
+            if name.lower() == gene.lower():
+                p.append(False)
+                break
+        else:
+            p.append(True)

@@ -57,6 +57,7 @@ def blast_probes(cds_org, debug, max_probes, min_probes, organism, probes, timeo
     g_set = defaultdict(dict)
     db = dataset.connect("sqlite:///db/probes.db")
     p_table = db[organism]
+    failed_probes = []
     for gene, masked_probes in groupby(probes, key=lambda x: x['Name']):
         for p_set in sorted(masked_probes, key=lambda x: x['Masking'], reverse=True):
 
@@ -83,12 +84,14 @@ def blast_probes(cds_org, debug, max_probes, min_probes, organism, probes, timeo
             except blaster.BlastError as e:
                 print(traceback.format_exc())
                 print("Blast Failed for {}".format(gene))
+                failed_probes.append(gene)
                 continue
             g_set[gene][p_set['Masking']] = passed
             passed['Masking'] = p_set['Masking']
             for n, line in passed.T.to_dict().items():
                 p_table.insert(line)
             print("Probeset added to table")
+    print("Failed on: {}".format(", ".join(failed_probes)))
     return g_set
 
 
@@ -213,13 +216,37 @@ esrrb, slca1, slca2, gck, hspa5, slc16a1, slc16a4, sst, ppy, neurog3"""
 - assuming ngn3 is NEUROG3
 - I don't know what BRN is
 """
+genes = """
+,Pcdha1,	Pcdhb1,	Pcdhga1,
+,Pcdha2,	Pcdhb2,	Pcdhga2
+,Pcdha3,	Pcdhb3,	Pcdhga3
+,Pcdha4,	Pcdhb4,	Pcdhga4
+,Pcdha5,	Pcdhb5,	Pcdhga5
+,Pcdha6,	Pcdhb6,	Pcdhga6
+,Pcdha7,	Pcdhb7,	Pcdhga7
+,Pcdha8,	Pcdhb8,	Pcdhga8
+,Pcdha9,	Pcdhb9,	Pcdhga9
+,Pcdha10,	Pcdhb10,	Pcdhga10
+,Pcdha11,	Pcdhb11,	Pcdhga11
+,Pcdha12,	Pcdhb12,	Pcdhga12
+,Pcdhac1,	Pcdhb13,	Pcdhgb1
+,Pcdhac2,	Pcdhb14,	Pcdhgb2
+,Pcdhb15,	Pcdhgb4,
+,Pcdhb16,	Pcdhgb5,
+,Pcdhb17,	Pcdhgb6,
+,Pcdhb18,	Pcdhgb7,
+,Pcdhb19,	Pcdhgb8,
+,Pcdhb20,	Pcdhgc3,
+,Pcdhb21,	Pcdhgc4,
+,Pcdhb22,	Pcdhgc5,
+"""
 
 target_genes = [x.strip() for x in genes.split(",")]
 min_probes = 24
 debug = True
-timeout = 180
+timeout = 60
 probes = main(target_genes, min_probes=12, max_probes=24,
-              timeout=timeout, debug=debug, organism='human')
+              timeout=timeout, debug=debug, organism='mouse')
 for gene, probes in probes['Passed'].items():
     try:
         os.mkdir('passed_probes3p3')

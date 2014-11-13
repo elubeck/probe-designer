@@ -1,1 +1,4 @@
+arrow
+pandas
+docopt
 wheel==0.22.0
