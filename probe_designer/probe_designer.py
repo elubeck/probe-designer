@@ -1,22 +1,25 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function
+from itertools import groupby
+from collections import defaultdict
+import os
+import traceback
+
 from future.builtins import str
 from future.builtins import zip
 from future.builtins import map
 from past.utils import old_div
-from itertools import groupby
-from collections import defaultdict
 from docopt import docopt
-import os
 import pandas as pd
-import get_seq
-import biosearch_designer
-import blaster
 import arrow
 from pathlib import Path
 import dataset
-import traceback
+
+import get_seq
+import biosearch_designer
+import blaster
+
 
 def maximize_masking(probes, max_probes=24):
     passed = defaultdict(dict)
@@ -60,8 +63,7 @@ def blast_probes(cds_org, debug, max_probes, min_probes, organism, probes, timeo
     failed_probes = []
     for gene, masked_probes in groupby(probes, key=lambda x: x['Name']):
         for p_set in sorted(masked_probes, key=lambda x: x['Masking'], reverse=True):
-
-            #Check if probe set already exists in db
+            # Check if probe set already exists in db
             if any(p_table.find(Name=gene, Masking=p_set['Masking'])):
                 print("Getting probeset from DB for {} at masking {}".format(gene, p_set['Masking']))
                 g_set[gene][p_set['Masking']] = pd.DataFrame(list(p_table.find(Name=gene, Masking=p_set['Masking'])))
@@ -131,7 +133,7 @@ def main(target_genes, max_probes=24, min_probes=24, timeout=120, debug=False, p
                 f.write("{}\n".format(cds))
         print("Writing to file3")
     b_designer = biosearch_designer.Biosearch(organism=b_org, variants=True)
-    probes = b_designer.design(passed_genes, min_probes,)
+    probes = b_designer.design(passed_genes, min_probes, )
     b_designer.close()
     if debug:
         write_folder = Path("debug").joinpath("bsearch")
@@ -147,11 +149,12 @@ def main(target_genes, max_probes=24, min_probes=24, timeout=120, debug=False, p
 def get_probes(gene, organism, masking):
     db = dataset.connect("sqlite:///db/probes.db")
     p_table = db[organism]
-    return p_table.find(Name=gene, masking=masking)
+    return list(p_table.find(Name=gene, Masking=masking))
+
 
 def get_optimal_probes(gene, organism, min_probes=12, max_probes=24):
-    stored_probes= None
-    for masking in (5,4,3):
+    stored_probes = None
+    for masking in (5, 4, 3):
         probes = list(get_probes(gene, organism, masking))
         if len(probes) == max_probes:
             return probes
@@ -164,6 +167,7 @@ def get_optimal_probes(gene, organism, min_probes=12, max_probes=24):
     if stored_probes is not None:
         return stored_probes
     raise Exception("No good probeset for {}".format(gene))
+
 
 doc = """
 Usage: probe_designer.py TARGETS [-o=OUTPUT] [-m=MIN_PROBES] [-d=DEBUG] [-t=TIMEOUT] [-i=INPUT] [-or=ORGANISM]
@@ -183,7 +187,7 @@ Options:
 # nppb,adcyap1,1700011l03Rik,prph,ctxn3,cd24a,prkcq,cdkn1c,gm687,trhde,igf1,rbms3,gm527,ndp,cyp1b1,rlbp1,
 # kcnj13,rdh5,rpe65,rgr,efemp1,bbs2,bbs4"""
 # genes = """grin1, grin2a, atp2b2, crmp1, bbc3, adora1, agrn, apoe, c19orf20, calb1, clock,
-#         dlg4, kifc2, mapk11, mib2, OXR1, pick1, pctk3, pyroxd1, aifm3, bad, bcl2, bok, app,
+# dlg4, kifc2, mapk11, mib2, OXR1, pick1, pctk3, pyroxd1, aifm3, bad, bcl2, bok, app,
 #         caskin2, grin2c, homer1, homer3, kcnip3, nlgn2, nrgn, nrxn3, amh, c4orf48, rest,
 #         met, pten, gad1, efemp1, txnip, hcrtr1, penk, pnoc, crh"""
 
@@ -240,6 +244,8 @@ genes = """
 ,Pcdhb21,	Pcdhgc4,
 ,Pcdhb22,	Pcdhgc5,
 """
+genes = """Wfs1, DCN, Htr2c, Grp, Gpr101, Col5a1, Gpc3, Prss12, Ndst4, Calb1, Matn2, Rph3a, Loxl1, Plagl1, Coch, Itga7,
+            Iyd, Pvalb, Slc6a1, vamp1, Map4k3, Amigo1, Amigo2, Col15a1, Ccdc3, Lct, Trhr"""
 
 target_genes = [x.strip() for x in genes.split(",")]
 min_probes = 24
@@ -247,13 +253,28 @@ debug = True
 timeout = 60
 probes = main(target_genes, min_probes=12, max_probes=24,
               timeout=timeout, debug=debug, organism='mouse')
-for gene, probes in probes['Passed'].items():
+# for gene, probes in probes['Passed'].items():
+#     try:
+#         os.mkdir('passed_probes_hip')
+#     except:
+#         pass
+#     out_path = os.path.join('passed_probes_hip', gene + '.csv')
+#     probes.to_csv(out_path)
+for gene in target_genes:
     try:
-        os.mkdir('passed_probes3p3')
+        os.mkdir('passed_probes_hip')
     except:
         pass
-    out_path = os.path.join('passed_probes3p3', gene + '.csv')
-    probes.to_csv(out_path)
+    out_path = os.path.join('passed_probes_hip', gene + '.csv')
+    for masking in (5,4,3):
+        probes = get_probes(gene, "mouse", masking)
+        print(gene, masking, len(probes))
+        if len(probes) == 24:
+            pd.DataFrame(probes).to_csv(out_path)
+            break
+        if masking == 4 and len(probes) > 16:
+            pd.DataFrame(probes).to_csv(out_path)
+            break
 
 if __name__ == '__main__':
     args = docopt(doc, )
