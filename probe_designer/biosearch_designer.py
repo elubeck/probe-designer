@@ -41,8 +41,18 @@ class Biosearch(object):
 
     def design(self, cds, min_probes):
         probes = []
+
+        # Check if biosearch can design probes for organism
+        organism_options = ["human", "mouse", "rat", "drosophila", "celegans", "other"]
+        if self.organism in organism_options:
+            chosen_org = self.organism
+            mask_range = [5, 4, 3]
+        else:
+            chosen_org = "other"
+            mask_range = [2]
+
         for gene, data in cds.items():
-            probe_set =  [p for p in [self.check_db(gene, mask) for mask in [5,4,3]]
+            probe_set =  [p for p in [self.check_db(gene, mask) for mask in mask_range]
                             if p is not None]
             if probe_set:
                 print("Found probeset for {}".format(gene))
@@ -52,18 +62,17 @@ class Biosearch(object):
             if self.is_open is False:
                 self.open()
             for n, seq in enumerate(data['CDS List']):
-                masking = 5
                 key_box = {'ProbeSetName': gene,
                            "SpacingLength": "2",
                            "ProbesNumber": "200",
                            "TargetSequence": seq
                             }
-                selection = {'MaskingOrganism': self.organism,
-                             "MaskingLevel": masking,
+                selection = {'MaskingOrganism': chosen_org,
+                             "MaskingLevel": mask_range[0],
                              }
                 if len(seq) < 20:
                     continue
-                while True:
+                for masking in mask_range:
                     for k,v in key_box.items():
                         elem = self.driver.find_element_by_name(k)
                         elem.clear()
@@ -91,15 +100,10 @@ class Biosearch(object):
                                    'CDS Region #': n, '# isoforms': data['# Isoforms'],
                                    })
                     self.write_db(probes[-1])
-                    if masking <= 3:
-                        break
-                    masking -= 1
                     self.driver.back()
                     self.driver.refresh()
-                print("Designed %i probes for %s cds#:%i with masking %i"
-                      % (len(table), gene, n, masking))
-                self.driver.back()
-                self.driver.refresh()
+                    print("Designed %i probes for %s cds#:%i with masking %i"
+                          % (len(table), gene, n, masking))
         return probes
 
     def open(self):

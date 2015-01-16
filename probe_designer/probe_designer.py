@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 from __future__ import division, print_function
 from itertools import groupby
 from collections import defaultdict
@@ -20,6 +21,21 @@ import get_seq
 import biosearch_designer
 import blaster
 
+
+doc = """
+Usage: probe_designer.py TARGETS [-o=OUTPUT] [-m=MIN_PROBES] [-d=DEBUG] [-t=TIMEOUT] [-i=INPUT] [-or=ORGANISM]
+
+Arguments:
+    TARGETS Comma-separated list of genes to design probes towards
+
+Options:
+    -o --output Whether to write each passed probe to a csv file.
+    -m --min_probes Minimum # of Probes to accept for a gene
+    -d --debug Whether to print debug output
+    -t --timeout How long(seconds) to wait for a response from NCBI.  Default=120 seconds.
+    -i --input File containing comma-seperated list of TARGETS.  Overwrites targets
+    -or --organism Organism to Target(Default: mouse)
+"""
 
 def maximize_masking(probes, max_probes=24):
     passed = defaultdict(dict)
@@ -98,12 +114,13 @@ def blast_probes(cds_org, debug, max_probes, min_probes, organism, probes, timeo
 
 
 def main(target_genes, max_probes=24, min_probes=24, timeout=120, debug=False, parallel=True, organism="mouse"):
-    if "mouse" == organism.lower():
+    b_org = organism.lower()
+    if "mouse" == b_org:
         cds_org = '"Mus musculus"[porgn:__txid10090]'
-        b_org = organism.lower()
-    elif "human" == organism.lower():
+    elif "human" == b_org:
         cds_org = '"Homo sapiens"[porgn:__txid9606]'
-        b_org = organism.lower()
+    elif "rabbit" == b_org:
+        cds_org = '"Oryctolagus cuniculus"[porgn:__txid9986]'
     else:
         raise IOError("Error organism {} not recognized.  Please add to program or reformat".format(organism))
     assert (isinstance(target_genes, list))
@@ -169,20 +186,6 @@ def get_optimal_probes(gene, organism, min_probes=12, max_probes=24):
     raise Exception("No good probeset for {}".format(gene))
 
 
-doc = """
-Usage: probe_designer.py TARGETS [-o=OUTPUT] [-m=MIN_PROBES] [-d=DEBUG] [-t=TIMEOUT] [-i=INPUT] [-or=ORGANISM]
-
-Arguments:
-    TARGETS Comma-separated list of genes to design probes towards
-
-Options:
-    -o --output Whether to write each passed probe to a csv file.
-    -m --min_probes Minimum # of Probes to accept for a gene
-    -d --debug Whether to print debug output
-    -t --timeout How long(seconds) to wait for a response from NCBI.  Default=120 seconds.
-    -i --input File containing comma-seperated list of TARGETS.  Overwrites targets
-    -or --organism Organism to Target(Default: mouse)
-"""
 # genes = """nrn1,s100a10,rbpms,fbxo2,nefl,tppp3,eg435376,sncg,rbpms2,rlbp1l2,slc17a6,chrnb3,bc089491,cpne9,tubb3,opn4,
 # nppb,adcyap1,1700011l03Rik,prph,ctxn3,cd24a,prkcq,cdkn1c,gm687,trhde,igf1,rbms3,gm527,ndp,cyp1b1,rlbp1,
 # kcnj13,rdh5,rpe65,rgr,efemp1,bbs2,bbs4"""
@@ -220,39 +223,60 @@ esrrb, slca1, slca2, gck, hspa5, slc16a1, slc16a4, sst, ppy, neurog3"""
 - assuming ngn3 is NEUROG3
 - I don't know what BRN is
 """
-genes = """
-,Pcdha1,	Pcdhb1,	Pcdhga1,
-,Pcdha2,	Pcdhb2,	Pcdhga2
-,Pcdha3,	Pcdhb3,	Pcdhga3
-,Pcdha4,	Pcdhb4,	Pcdhga4
-,Pcdha5,	Pcdhb5,	Pcdhga5
-,Pcdha6,	Pcdhb6,	Pcdhga6
-,Pcdha7,	Pcdhb7,	Pcdhga7
-,Pcdha8,	Pcdhb8,	Pcdhga8
-,Pcdha9,	Pcdhb9,	Pcdhga9
-,Pcdha10,	Pcdhb10,	Pcdhga10
-,Pcdha11,	Pcdhb11,	Pcdhga11
-,Pcdha12,	Pcdhb12,	Pcdhga12
-,Pcdhac1,	Pcdhb13,	Pcdhgb1
-,Pcdhac2,	Pcdhb14,	Pcdhgb2
-,Pcdhb15,	Pcdhgb4,
-,Pcdhb16,	Pcdhgb5,
-,Pcdhb17,	Pcdhgb6,
-,Pcdhb18,	Pcdhgb7,
-,Pcdhb19,	Pcdhgb8,
-,Pcdhb20,	Pcdhgc3,
-,Pcdhb21,	Pcdhgc4,
-,Pcdhb22,	Pcdhgc5,
-"""
-genes = """Wfs1, DCN, Htr2c, Grp, Gpr101, Col5a1, Gpc3, Prss12, Ndst4, Calb1, Matn2, Rph3a, Loxl1, Plagl1, Coch, Itga7,
-            Iyd, Pvalb, Slc6a1, vamp1, Map4k3, Amigo1, Amigo2, Col15a1, Ccdc3, Lct, Trhr"""
+# genes = """
+# ,Pcdha1,	Pcdhb1,	Pcdhga1,
+# ,Pcdha2,	Pcdhb2,	Pcdhga2
+# ,Pcdha3,	Pcdhb3,	Pcdhga3
+# ,Pcdha4,	Pcdhb4,	Pcdhga4
+# ,Pcdha5,	Pcdhb5,	Pcdhga5
+# ,Pcdha6,	Pcdhb6,	Pcdhga6
+# ,Pcdha7,	Pcdhb7,	Pcdhga7
+# ,Pcdha8,	Pcdhb8,	Pcdhga8
+# ,Pcdha9,	Pcdhb9,	Pcdhga9
+# ,Pcdha10,	Pcdhb10,	Pcdhga10
+# ,Pcdha11,	Pcdhb11,	Pcdhga11
+# ,Pcdha12,	Pcdhb12,	Pcdhga12
+# ,Pcdhac1,	Pcdhb13,	Pcdhgb1
+# ,Pcdhac2,	Pcdhb14,	Pcdhgb2
+# ,Pcdhb15,	Pcdhgb4,
+# ,Pcdhb16,	Pcdhgb5,
+# ,Pcdhb17,	Pcdhgb6,
+# ,Pcdhb18,	Pcdhgb7,
+# ,Pcdhb19,	Pcdhgb8,
+# ,Pcdhb20,	Pcdhgc3,
+# ,Pcdhb21,	Pcdhgc4,
+# ,Pcdhb22,	Pcdhgc5,
+# """
+# genes = """Wfs1, DCN, Htr2c, Grp, Gpr101, Col5a1, Gpc3, Prss12, Ndst4, Calb1, Matn2, Rph3a, Loxl1, Plagl1, Coch, Itga7,
+#             Iyd, Pvalb, Slc6a1, vamp1, Map4k3, Amigo1, Amigo2, Col15a1, Ccdc3, Lct, Trhr"""
+
+genes = """CCL2
+,CCL4
+,CCL21
+,CCL28
+,CXCL13
+,CCR5
+,IL-1a
+,IL-4
+,IL-10
+,IL-17A
+,IL-18
+,BAFF
+,CTLA-4
+,CD40L = CD154
+,CD5
+,CD40
+,CD1d
+,MHC I
+,MHC II
+,CD72"""
 
 target_genes = [x.strip() for x in genes.split(",")]
 min_probes = 24
 debug = True
 timeout = 60
 probes = main(target_genes, min_probes=12, max_probes=24,
-              timeout=timeout, debug=debug, organism='mouse')
+              timeout=timeout, debug=debug, organism='rabbit')
 # for gene, probes in probes['Passed'].items():
 #     try:
 #         os.mkdir('passed_probes_hip')
@@ -262,19 +286,15 @@ probes = main(target_genes, min_probes=12, max_probes=24,
 #     probes.to_csv(out_path)
 for gene in target_genes:
     try:
-        os.mkdir('passed_probes_hip')
+        os.mkdir('passed_probes_rabbit')
     except:
         pass
-    out_path = os.path.join('passed_probes_hip', gene + '.csv')
-    for masking in (5,4,3):
-        probes = get_probes(gene, "mouse", masking)
-        print(gene, masking, len(probes))
-        if len(probes) == 24:
+    out_path = os.path.join('passed_probes_rabbit', gene + '.csv')
+    for masking in [2]:
+        probes = get_probes(gene, "rabbit", masking)
+        print(gene, len(probes))
+        if len(probes) > 12:
             pd.DataFrame(probes).to_csv(out_path)
-            break
-        if masking == 4 and len(probes) > 16:
-            pd.DataFrame(probes).to_csv(out_path)
-            break
 
 if __name__ == '__main__':
     args = docopt(doc, )
