@@ -55,9 +55,10 @@ class Biosearch(object):
             probe_set =  [p for p in [self.check_db(gene, mask) for mask in mask_range]
                             if p is not None]
             if probe_set:
-                print("Found probeset for {}".format(gene))
                 for probe in probe_set:
                     probes.append(probe)
+                # print(probes[0])
+                print("Found unblasted probeset for {} at length {} probes".format(gene, len(probes)))
                 continue
             if self.is_open is False:
                 self.open()

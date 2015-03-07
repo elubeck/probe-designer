@@ -109,7 +109,7 @@ def blast_probes(cds_org, debug, max_probes, min_probes, organism, probes, timeo
             for n, line in passed.T.to_dict().items():
                 p_table.insert(line)
             print("Probeset added to table")
-    print("Failed on: {}".format(", ".join(failed_probes)))
+    # print("Failed on: {}".format(", ".join(failed_probes)))
     return g_set
 
 
@@ -207,8 +207,8 @@ genes = """ins, pdx1, mafa, mafb, nkx6.1, nkx2.2, isl1, pax6, pax4, nd1,
 pcsk1, sur1, ldha, mvk, hk1, hk2,
 bip, atf5, atf6b, prdx4, ddit3, ero1l, gcg, brn, arx,
 grehlin, sox9, hnf6, hes1, ngn3, drd2, rit2, ets1, plagl1, bhlhe40, hmgb3, asxl3,
-esrrb, slca1, slca2, gck, hspa5, slc16a1, slc16a4, sst, ppy, neurog3"""
-"""Notes
+esrrb, slca1, slca2, gck, hspa5, slc16a1, slc16a4, sst, ppy, neurog3,"""
+""""Notes
 - assuming esrrb1 is esrrb
 - assurming glut1 is SLC2A1
 - assuming glut2 is SLC2A2
@@ -250,33 +250,89 @@ esrrb, slca1, slca2, gck, hspa5, slc16a1, slc16a4, sst, ppy, neurog3"""
 # genes = """Wfs1, DCN, Htr2c, Grp, Gpr101, Col5a1, Gpc3, Prss12, Ndst4, Calb1, Matn2, Rph3a, Loxl1, Plagl1, Coch, Itga7,
 #             Iyd, Pvalb, Slc6a1, vamp1, Map4k3, Amigo1, Amigo2, Col15a1, Ccdc3, Lct, Trhr"""
 
-genes = """CCL2
-,CCL4
-,CCL21
-,CCL28
-,CXCL13
-,CCR5
-,IL-1a
-,IL-4
-,IL-10
-,IL-17A
-,IL-18
-,BAFF
-,CTLA-4
-,CD40L = CD154
-,CD5
-,CD40
-,CD1d
-,MHC I
-,MHC II
-,CD72"""
-
+# genes = """CCL2
+# ,ACT2
+# ,CCL21
+# ,CCL28
+# ,CXCL13
+# ,CCR5
+# ,Il1A
+# ,IL4
+# ,IL10
+# ,IL17A
+# ,IL18
+# ,TNFSF13B
+# ,CTLA4
+# ,CD40LG
+# ,CD5
+# ,CD40
+# ,CD1D
+# ,B2M
+# ,CD74
+# ,CD72"""
+genes = """
+Tbr1,
+Rasgrf2,
+Pvrl3,
+Cux2,
+Rorb,
+Plcxd2,
+Thsd7a,
+Kcnk2,
+Cplx3,
+Sulf2,
+Foxp2,
+Syt6,
+Rprm,
+Nr4a2,
+Synpr,
+Pcp4,
+Gad1,
+Pvalb,
+Sst,
+Htr3a,
+Vip,
+Reln,
+Cck,
+Npy,
+Lhx6,
+Calb2,
+Pde1a,
+Lphn2,
+Kcnip2,
+Rgs10,
+Nov,
+Cpne5,
+Slc5a7,
+Crh,
+Pax6,
+Cxcl14,
+Gda,
+Sema3e,
+"""
+genes = """Esrrb
+,Nanog
+,Tcl1
+,Sox2
+,Tet1
+,Tbx3
+,Dppa3
+,Prdm14
+,Dnmt3b
+,Dnmt1
+,Sdha
+,Kdm6a
+,Fbxo15
+,Lin28a
+,Alkbh5
+,Mettl3
+"""
 target_genes = [x.strip() for x in genes.split(",")]
 min_probes = 24
 debug = True
 timeout = 60
 probes = main(target_genes, min_probes=12, max_probes=24,
-              timeout=timeout, debug=debug, organism='rabbit')
+              timeout=timeout, debug=debug, organism='mouse')
 # for gene, probes in probes['Passed'].items():
 #     try:
 #         os.mkdir('passed_probes_hip')
@@ -284,17 +340,21 @@ probes = main(target_genes, min_probes=12, max_probes=24,
 #         pass
 #     out_path = os.path.join('passed_probes_hip', gene + '.csv')
 #     probes.to_csv(out_path)
+dir_name = "passed_probes_iPSC"
 for gene in target_genes:
     try:
-        os.mkdir('passed_probes_rabbit')
+        os.mkdir(dir_name)
     except:
         pass
-    out_path = os.path.join('passed_probes_rabbit', gene + '.csv')
-    for masking in [2]:
-        probes = get_probes(gene, "rabbit", masking)
-        print(gene, len(probes))
+    out_path = os.path.join(dir_name, gene + '.csv')
+    for masking in [5,4,3]:
+        probes = get_probes(gene, "mouse", masking)
         if len(probes) > 12:
+            print(gene, masking, len(probes))
             pd.DataFrame(probes).to_csv(out_path)
+            break
+    else:
+        print("Couldn't Find probes for {}".format(gene))
 
 if __name__ == '__main__':
     args = docopt(doc, )

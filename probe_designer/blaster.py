@@ -125,6 +125,16 @@ class BlastError(Exception):
     def __init__(self, exception):
         Exception.__init__(self, exception)
 
+def filter_probes_2(gene, blast_hits, probe_df, max_probes=24, min_probes=16, n_probes=24, max_false_hits=7, debug=False):
+    gene = gene.strip()
+    #Count all genes that have off target hits
+    d = pd.DataFrame({k:Counter(v) for k, v in blast_res.iteritems()})
+    d = d.fillna(0)
+    tot_hits = d.sum(1)
+    tot_hits.sort(ascending=False)
+    tot_hits
+
+
 def filter_probes_based_on_blast(gene, blast_hits, probe_df, max_probes=24, min_probes=16, n_probes=24, max_false_hits=7, debug=False):
     """
     Attempts to pick the n_probes best probes for a given set of probes.
@@ -152,16 +162,12 @@ def filter_probes_based_on_blast(gene, blast_hits, probe_df, max_probes=24, min_
             p.append(True)
     bad_genes = s.index[p]
     bad = s[bad_genes]
-    #extra_bad = bad[bad > 2].index
     #Tallies up in order of how many incorrect genes are hit all the bad hits
     eb = [bad[bad > i].index for i in range(1, 10)]
     bad_hits = [ [p] + [sum(badi.isin(hits)) for badi in eb]
            for p, hits in blast_hits.items()]
     #Creates tuple=(probe_name, # of off target hits, # of 2 off target hits )
     sorted(bad_hits, key=lambda x: [x[i] for i in range(1, 10)])
-    # bad_hits = [(probe, sum(bad_genes.isin(probe_hits)), sum(extra_bad.isin(probe_hits)))
-    #              for probe, probe_hits in blast_hits.items()]
-    # bad_hits = sorted(bad_hits, key=lambda x: (x[1], x[2]))
     # number of probes to design
     n_probes = min((len(blast_hits), max_probes))
     while n_probes >= min_probes:
