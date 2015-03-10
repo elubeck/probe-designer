@@ -58,7 +58,7 @@ def blast_query(query, max_time=120, max_iterations=10, organism='"Mus musculus"
             try:
                 res = NCBIWWW.qblast('blastn', 'refseq_rna', query,
                                    entrez_query=organism,
-                                   word_size=7)
+                                   word_size=11)
             except Exception as inst:
                 print(type(inst))     # the exception instance
                 print(inst.args)      # arguments stored in .args
@@ -167,7 +167,7 @@ def filter_probes_based_on_blast(gene, blast_hits, probe_df, max_probes=24, min_
     bad_hits = [ [p] + [sum(badi.isin(hits)) for badi in eb]
            for p, hits in blast_hits.items()]
     #Creates tuple=(probe_name, # of off target hits, # of 2 off target hits )
-    sorted(bad_hits, key=lambda x: [x[i] for i in range(1, 10)])
+    bad_hits = sorted(bad_hits, key=lambda x: [x[i] for i in range(1, 10)])
     # number of probes to design
     n_probes = min((len(blast_hits), max_probes))
     while n_probes >= min_probes:
