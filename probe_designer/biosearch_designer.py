@@ -21,12 +21,12 @@ class Biosearch(object):
 
     def check_db(self, gene, masking):
         res = self.table.find(Name=gene, Variants=self.variants, Masking=masking)
+        passed = []
         for item in res:
             if arrow.get(item['Date']) >= self.date.replace(years = -1):
                 item['Probes'] = pd.DataFrame(list(self.p_table.find(ProbeID=item['ProbeID'])))
-                return item
-        else:
-            return None
+                passed.append(item)
+        return passed
 
 
     def write_db(self, probes):
@@ -53,12 +53,12 @@ class Biosearch(object):
 
         for gene, data in cds.items():
             probe_set =  [p for p in [self.check_db(gene, mask) for mask in mask_range]
-                            if p is not None]
+                            if p]
             if probe_set:
                 for probe in probe_set:
                     probes.append(probe)
-                # print(probes[0])
-                print("Found unblasted probeset for {} at length {} probes".format(gene, len(probes)))
+                pl = [pd.concat([p['Probes'] for p in probe], ignore_index=True).shape[0] for probe in probe_set]
+                print("Found unblasted probeset for {} with {} probes".format(gene,pl))
                 continue
             if self.is_open is False:
                 self.open()
