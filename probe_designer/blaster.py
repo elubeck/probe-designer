@@ -73,7 +73,7 @@ def blast_query(query, max_time=120, max_iterations=10, organism='"Mus musculus"
         iterations += 1
 
 
-def parse_hits(handle, strand=-1):
+def parse_hits(handle, strand=-1, match_thresh=13):
     """
     Parses the results from a blast search.  Returns all blast hits on a given strand
     :param handle: results xml handle from blast search
@@ -87,7 +87,10 @@ def parse_hits(handle, strand=-1):
             for hsp in alignment.hsps:
                 #Check that hit is on opposite strand
                 if hsp.frame[1] == strand:
-                    gene_hits[record.query].append(alignment.hit_def)
+                    block_len = [len([1 for digit in block if digit == "|"])
+                                    for block in hsp.match.split(" ")]
+                    if any([True for b in block_len if b >= match_thresh]):
+                        gene_hits[record.query].append(alignment.hit_def)
     return gene_hits
 
 
