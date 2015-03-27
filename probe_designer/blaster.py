@@ -8,6 +8,8 @@ import collections
 from Bio.Blast import NCBIWWW, NCBIXML
 import pandas as pd
 
+import dataset
+blast_db = dataset.connect("sqlite:///db/blast.db")
 
 class TimeoutError(Exception):
     pass
@@ -94,26 +96,44 @@ def parse_hits(handle, strand=-1, match_thresh=13):
     return gene_hits
 
 
+def check_db(probe_df, organism):
+    blast_table = blast_db[organism]
+    res = {}
+    for k, v in probe_df.iterrows():
+        query = v['Probe Name']
+        hits = list(blast_table.find(probe_name=query))
+        if any(hits):
+            res[query] = [match['hit'] for match in hits]
+    return res
+
+def write_db(hits, organism):
+    blast_table = blast_db[organism]
+    for query, v in hits.iteritems():
+        for hit in v:
+            blast_table.insert({'probe_name': query, 'hit': hit})
+
 def blast_probes(gene, probe_df, timeout=120, debug=False, organism='"Mus musculus"[porgn:__txid10090]'):
     """
     Runs entire blast routine for a given gene returning
-    only the complementary hits for a probeset.
+    only the complementary hits for a probeset.  Stores result in a db.
     :param gene: Name of gene
     :param probe_df: Pandas DataFrame of probes
     :param debug: Whether to print program output
-    :return: dictionary of probe:[target...] hits for each probe
+    :return:
     """
-    fasta_query = probe_df_to_fasta(probe_df)
-    res = blast_query(fasta_query, max_time=timeout, organism=organism)
-    gene_hits = parse_hits(res)
-    if debug:
-        #Print the false hits for an entire gene
-        i = Counter([hit for k, v in gene_hits.items() for hit in v])
-        s = pd.Series({k:v for k,v in i.items() if v>1})
-        s.sort(ascending=False)
-        print(gene, s)
-        print('...\n'*3)
-    return gene_hits
+    db_gene_hits = check_db(probe_df, organism)
+    exists = probe_df['Probe Name'].isin(db_gene_hits.keys())
+    blast_these = exists != True
+    blast_df = probe_df.ix[blast_these]
+    if not blast_df.empty:
+        print("Blasting {} of {} oligos".format(len(blast_df), len(probe_df)))
+        fasta_query = probe_df_to_fasta(blast_df)
+        res = blast_query(fasta_query, max_time=timeout, organism=organism)
+        gene_hits = parse_hits(res)
+        write_db(gene_hits, organism)
+        import time
+        print("Taking a minute")
+        time.sleep(60)
 
 
 def flatten(l):
