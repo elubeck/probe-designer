@@ -17,6 +17,7 @@ from Bio import AlignIO
 import numpy as np
 import dataset
 import arrow
+from Bio.Application import ApplicationError
 
 
 Entrez.email = 'elubeck@caltech.edu'
@@ -78,7 +79,10 @@ class CDS(object):
         elif aligner == 'clustalo':
             cline = ClustalOmegaCommandline(infile=in_file,
                                             outfile=out_file,)
-        stdout, stderr = cline()
+        try:
+            stdout, stderr = cline()
+        except:
+            raise CDSError("Muscle failed for {}".format(self.gene))
         ali = AlignIO.read(out_file, format='fasta')
         ali_arr = np.array([list(rec) for rec in ali], np.character)
         letter_count = np.sum(ali_arr != '-',0)
