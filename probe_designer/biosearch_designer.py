@@ -62,7 +62,16 @@ class Biosearch(object):
                 continue
             if self.is_open is False:
                 self.open()
-            for n, seq in enumerate(data['CDS List']):
+            cds_list = []
+            for seq in data['CDS List']:
+                if len(seq) < 8000:
+                    cds_list.append(seq)
+                elif len(seq) >= 8000:
+                    n_chunks = 1 + len(seq) // 8000
+                    for i in range(n_chunks):
+                        cds_list.append(seq[i*8000:(i+1)*8000])
+            print(len(cds_list), len(data['CDS List']))
+            for n, seq in enumerate(cds_list):
                 key_box = {'ProbeSetName': gene,
                            "SpacingLength": "2",
                            "ProbesNumber": "200",
@@ -108,7 +117,7 @@ class Biosearch(object):
         return probes
 
     def open(self):
-        self.selenium = subprocess.Popen("java -jar ../lib/selenium-server-standalone-2.43.1.jar", shell=True) # Will probably only work on nix systems
+        self.selenium = subprocess.Popen("java -jar ../lib/selenium-server-standalone-2.45.0.jar", shell=True) # Will probably only work on nix systems
         self.driver = webdriver.Firefox()
         self.driver.implicitly_wait(30) # seconds
         self.login()
