@@ -192,7 +192,7 @@ def blast_probes(cds_org, debug, max_probes, min_probes, organism, probes, timeo
     return g_set
 
 
-def main(target_genes, max_probes=24, min_probes=24, timeout=120, debug=False, parallel=True, organism="mouse"):
+def main(target_genes, max_probes=24, min_probes=24, timeout=120, debug=False, parallel=True, organism="mouse", probe_design='biosearch'):
     b_org = organism.lower()
     if "mouse" == b_org:
         cds_org = '"Mus musculus"[porgn:__txid10090]'
@@ -228,9 +228,14 @@ def main(target_genes, max_probes=24, min_probes=24, timeout=120, debug=False, p
                 f.write(">{} from {}\n".format(gene, organism))
                 f.write("{}\n".format(cds))
         print("Writing to file3")
-    b_designer = biosearch_designer.Biosearch(organism=b_org, variants=True)
-    probes = b_designer.design(passed_genes, min_probes, )
-    b_designer.close()
+    if probe_design == 'biosearch':
+        b_designer = biosearch_designer.Biosearch(organism=b_org, variants=True)
+        probes = b_designer.design(passed_genes, min_probes, )
+        b_designer.close()
+    elif probe_design == 'oligoarray':
+        pass
+    else:
+        raise Exception("{} designer not recognized".format(probe_design))
     if debug:
         write_folder = Path("debug").joinpath("bsearch")
         try:
