@@ -89,7 +89,6 @@ def batch_blast_probes(cds_org, debug, max_probes, min_probes, organism, probes,
         if any(p_table.find(Name=gene, Masking=masking)):
             print("Getting probeset from DB for {} at masking {}".format(gene, masking))
             g_set[gene][masking] = pd.DataFrame(list(p_table.find(Name=gene, Masking=masking)))
-            continue
         merged_pset = []
         for cds_region in p_set:
             reg = cds_region['Probes']
@@ -106,20 +105,20 @@ def batch_blast_probes(cds_org, debug, max_probes, min_probes, organism, probes,
         mass_df.append(probe_df)
     if not mass_df:
         return g_set
-    df = pd.concat(mass_df, ignore_index=True)
+    df = pd.concat(mass_df, ignore_index=True, join='inner')
     #Choose first probe of every repeat.  Because multiple maskings are allowed, same probe can be chosen many times
     pre = len(df)
     unique_index = [df.index[df['Probe Name']==name][0] for name in df['Probe Name'].unique()]
     from random import shuffle
     shuffle(unique_index)
-    df = df.ix[unique_index] #Do this in a random order to reduce # of small blast runs
+    df2 = df.ix[unique_index] #Do this in a random order to reduce # of small blast runs
     print(pre, len(df))
     #Try splitting probelist into smaller chunks probe sets
     chunk_size = 2000
     b_res = {}
     print("Blasting: {} total probes".format(len(df)))
     for i in range(0, len(df), chunk_size):
-        sub_df = df.iloc[i:i+chunk_size]
+        sub_df = df2.iloc[i:i+chunk_size]
         print("Blasting: {} to {}".format(i, i+chunk_size-1))
         blaster.blast_probes('', sub_df, timeout=1800, debug=False, organism=cds_org)
         # sub_bres = []
@@ -142,6 +141,7 @@ def batch_blast_probes(cds_org, debug, max_probes, min_probes, organism, probes,
                 print("Blast Failed for {}".format(gene))
                 failed_probes.append(gene)
                 continue
+            print(len(passed), gene, masking)
             g_set[gene][masking] = passed
             for n, line in passed.T.to_dict().items():
                 p_table.insert(line)
@@ -159,7 +159,6 @@ def blast_probes(cds_org, debug, max_probes, min_probes, organism, probes, timeo
         if any(p_table.find(Name=gene, Masking=masking)):
             print("Getting probeset from DB for {} at masking {}".format(gene, masking))
             g_set[gene][masking] = pd.DataFrame(list(p_table.find(Name=gene, Masking=masking)))
-            continue
         merged_pset = []
         for cds_region in p_set:
             reg = cds_region['Probes']
@@ -266,6 +265,12 @@ def get_optimal_probes(gene, organism, min_probes=12, max_probes=24):
         return stored_probes
     raise Exception("No good probeset for {}".format(gene))
 
+def del_probes(target_genes, organism='mouse'):
+    db = dataset.connect("sqlite:///db/probes.db")
+    p_table = db[organism]
+    for gene in target_genes:
+        p_table.delete(Name=gene)
+
 
 # genes = """nrn1,s100a10,rbpms,fbxo2,nefl,tppp3,eg435376,sncg,rbpms2,rlbp1l2,slc17a6,chrnb3,bc089491,cpne9,tubb3,opn4,
 # nppb,adcyap1,1700011l03Rik,prph,ctxn3,cd24a,prkcq,cdkn1c,gm687,trhde,igf1,rbms3,gm527,ndp,cyp1b1,rlbp1,
@@ -367,7 +372,7 @@ Tbr1
 ,Adora2a
 ,Cd4
 ,Rgs9
-,Drd1a
+,Drd1
 ,Serpina9
 ,Ngfr
 ,Ntrk1
@@ -376,347 +381,100 @@ Tbr1
 ,Pcdh11x
 ,Slc6a3
 ,Magell2
-,Lyd,
+,Iyd,
+Lyd,
 Lm1,
 Tiam2,
 Robo1,
 Cadps2
 """
 
-genes = [u'Smug1',
- u'Npr1',
- u'Axin2',
- u'Kcnh3',
- u'Apbb2',
- u'Glp1r',
- u'Ppfibp1',
- u'Ano2',
- u'Foxa1',
- u'Maob',
- u'Wif1',
- u'Rnf144b',
- u'Snca',
- u'Tdo2',
- u'Slc17a8',
- u'Neto2',
- u'Pde5a',
- u'Fezf1',
- u'Cdh8',
- u'Anxa2',
- u'Esr2',
- u'Anxa4',
- u'Grid2',
- u'Sun2',
- u'Itgb8',
- u'Nenf',
- u'Kcng4',
- u'Syt6',
- u'A230065H16Rik',
- u'Rgs4',
- u'Kcnmb4',
- u'Gpx3',
- u'Stk24',
- u'Dap',
- u'Prss35',
- u'Dach1',
- u'Lrmp',
- u'Nov',
- u'Clca1',
- u'Fam40b',
- u'Iyd',
- u'Nfia',
- u'Ccnd2',
- u'Gabrr1',
- u'Thbs2',
- u'Tph2',
- u'Serpina3k',
- u'Dlk1',
- u'Rrm2',
- u'9630033F20Rik',
- u'Adam19',
- u'Cartpt',
- u'Lhx1',
- u'Slc26a10',
- u'Crim1',
- u'3110047P20Rik',
- u'F5',
- u'Slc6a2',
- u'Ptpru',
- u'Zdhhc2',
- u'Arl10',
- u'Serpina9',
- u'Kcnq4',
- u'Prox1',
- u'Kitl',
- u'Agrp',
- u'Prokr2',
- u'Arc',
- u'2310042E22Rik',
- u'Col23a1',
- u'Gfra1',
- u'Pstpip1',
- u'Sipa1l2',
- u'Cacng5',
- u'Trim16',
- u'Fam163b',
- u'Kcnj5',
- u'Zfp114',
- u'Ism1',
- u'Slc41a3',
- u'LOC433088',
- u'Npnt',
- u'Pcdhac1',
- u'Calb1',
- u'Prkg2',
- u'Slc18a3',
- u'Cdh11',
- u'Lgals1',
- u'Scn5a',
- u'Sema7a',
- u'Camk1d',
- u'Foxp2',
- u'Kcnc3',
- u'Doc2b',
- u'Pacrg',
- u'B3galt2',
- u'Gpr155',
- u'Fabp7',
- u'Irs4',
- u'Nts',
- u'Mlec',
- u'Gabrq',
- u'Rai14',
- u'Ankrd34b',
- u'Cplx3',
- u'Crym',
- u'Nhlh2',
- u'Baiap3',
- u'Pln',
- u'Fnbp1l',
- u'Rreb1',
- u'Fgd5',
- u'Spint2',
- u'Tmed3',
- u'Fam65b',
- u'Isoc1',
- u'Slc10a4',
- u'Layn',
- u'Nqo2',
- u'Cdh23',
- u'Cdh24',
- u'Ly6h',
- u'Lxn',
- u'Bok',
- u'Cyp39a1',
- u'Hs6st3',
- u'Ltk',
- u'Itgb5',
- u'Panx2',
- u'Scai',
- u'Chst8',
- u'Ngef',
- u'BC034076',
- u'Hspb1',
- u'Cables2',
- u'Bhlhe41',
- u'Lypd6b',
- u'Gng12',
- u'Col9a1',
- u'Clptm1l',
- u'Me2',
- u'Slc16a2',
- u'Smoc1',
- u'Sv2b',
- u'Rftn1',
- u'Mki67',
- u'Tox',
- u'Vav2',
- u'Entpd3',
- u'Ntng1',
- u'Acvr1c',
- u'Ddit4l',
- u'Slc17a6',
- u'Slc17a7',
- u'AF529169',
- u'Tcn2',
- u'Ctgf',
- u'Ust',
- u'Fam129a',
- u'Gpc5',
- u'Tmem215',
- u'Trpv4',
- u'Chrna5',
- u'Gchfr',
- u'Etv1',
- u'Htr5b',
- u'Clic5',
- u'Lats2',
- u'Ntn1',
- u'Chrnb3',
- u'Prss12',
- u'Lrp1b',
- u'Zfhx3',
- u'Ntsr1',
- u'LOC433228',
- u'Stac',
- u'Gpr133',
- u'Moxd1',
- u'Ghsr',
- u'Chrna6',
- u'Sh3kbp1',
- u'Tspan18',
- u'Lipa',
- u'Loxl2',
- u'Gucy2c',
- u'Bcl2l11',
- u'LOC381076',
- u'Rcn1',
- u'Glra3',
- u'Tspan11',
- u'Glra1',
- u'1810041L15Rik',
- u'Rorb',
- u'Sulf1',
- u'Esyt3',
- u'Clca2',
- u'Sln',
- u'Chrna7',
- u'Slit3',
- u'Arhgap25',
- u'Chrna3',
- u'Cacna1g',
- u'Fam5c',
- u'Pitpnc1',
- u'Cda',
- u'Fam102b',
- u'Kcng3',
- u'Tac2',
- u'Vsnl1',
- u'Kcnj14',
- u'Cmklr1',
- u'Tanc1',
- u'Gpr101',
- u'A930038C07Rik',
- u'Adcyap1',
- u'Tpd52l1',
- u'Ptpn3',
- u'A830036E02Rik',
- u'Amigo2',
- u'Ifit3',
- u'Pcdh11x',
- u'9430028L06Rik',
- u'Ttc6',
- u'Allc',
- u'Iqcj',
- u'Bace1',
- u'Itga7',
- u'Gnb4',
- u'Prkcd',
- u'Slc22a3',
- u'Id2',
- u'Fam46a',
- u'Zfp618',
- u'Ddc',
- u'Icam5',
- u'Gsg1l',
- u'Acaa2',
- u'Map3k15',
- u'Th',
- u'LOC432928',
- u'Dusp5',
- u'Abcd2',
- u'Nrp1',
- u'Rgs16',
- u'Fjx1',
- u'Enox2',
- u'Phactr2',
- u'Fign',
- u'Atp10a',
- u'Limk1',
- u'Trim36',
- u'Slc8a2',
- u'Kit',
- u'Cdh9',
- u'Ccdc3',
- u'Npy',
- u'Rab3b',
- u'Pomc',
- u'Gpr50',
- u'Myo16',
- u'Nxph4',
- u'Plxdc2',
- u'Chrna2',
- u'Gphn',
- u'Prcp',
- u'1600021P15Rik',
- u'1700019N12Rik',
- u'Ace',
- u'Lypd1',
- u'Prlr',
- u'Gabrg1',
- u'Ndst4',
- u'Camk4',
- u'Prkcg',
- u'Ntrk1',
- u'Rps5',
- u'Lpl',
- u'Cyld',
- u'Prkcq',
- u'Fam19a2',
- u'C230071H18Rik',
- u'Gls',
- u'Rasl11b',
- u'Calcb',
- u'Lhfpl2',
- u'Coch',
- u'Rab37',
- u'Acan',
- u'Sema5b',
- u'Sntb1',
- u'Zfpm2',
- u'1110007C09Rik',
- u'Qrfpr',
- u'Tiam2',
- u'Ramp3',
- u'Grm1',
- u'Fam69c',
- u'Gda',
- u'Syt10',
- u'Pax6',
- u'Prune2',
- u'Satb2',
- u'Nrgn',
- u'Npy1r',
- u'Vipr2',
- u'Dlx1',
- u'Dpp6']
+genes = """
+Albhk5
+,Ash1
+,Axin2
+,Bmi1
+,bmp4
+,bmpr1a
+,Brachyury
+,Cdh1
+,Col5a2
+,ctcf
+,dazl
+,Dnmt1
+,dnmt3a
+,Dnmt3b
+,Dnmt3L
+,Dppa2
+,Dppa3
+,Dppa4
+,EED
+,ehmt2
+,Esrrb
+,Ezh2
+,Fbxo15
+,Fgf4
+,Fgfr2
+,FoxO1
+,Foxa2
+,G9A
+,Gsk3b
+,hdac1
+,hdac2
+,Hes1
+,Id1
+,Id2
+,Jarid2
+,kdm3a
+,kdm3b
+,kdm4c
+,kdm4d
+,kdm6a
+,klf2
+,klf4
+,klf5
+,Lifr
+,Lin28a
+,Lin28b
+,LSD1
+,mael
+,METTL14
+,METTL3
+,Myc
+,Mycn
+,Nanog
+,Nr0b1
+,Oct4
+,pax6
+,Pecam1
+,Prdm14
+,Rest
+,Sall4
+,Sdha
+,setdb1
+,Smad1
+,Smad5
+,Smad4
+,Socs3
+,Sox2
+,Sp1
+,Suz12
+,sycp3
+,Tbx3
+,Tcl1
+,Tet1
+,tet2
+,tet3
+,Trim28
+,Thy1
+,Utf1
+,Xist
+,Zfp42
+"""
 
-#target_genes = [x.strip() for x in genes.split(",")]
-target_genes = genes
 debug = True
 timeout = 60
-#probes = main(target_genes, min_probes=16, max_probes=64,
-#              timeout=timeout, debug=debug, organism='mouse')
-dir_name = "passed_probes_wholeBrain_ABA_fine_structure_top_5"
-n_probes = 0
-for gene in target_genes:
-    try:
-        os.mkdir(dir_name)
-    except:
-        pass
-    passed = False
-    for masking in [5,4,3]:
-        probes = get_probes(gene, "mouse", masking)
-        if len(probes) > 16:
-            out_path = os.path.join(dir_name, gene + '_Mask={}_N={}.csv'.format(masking, len(probes)))
-            print(gene, masking, len(probes))
-            pd.DataFrame(probes).to_csv(out_path)
-            passed = True
-    if passed:
-        n_probes += 1
-    if passed == False:
-        print("Couldn't Find probes for {}".format(gene))
-print(n_probes)
+
 
 if __name__ == '__main__':
     args = docopt(doc, )
