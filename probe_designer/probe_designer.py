@@ -56,27 +56,6 @@ def maximize_masking(probes, max_probes=24):
         p2[gene] = m_dist[highest_key]
     return p2
 
-
-def flatten_probes(p2):
-    # Flatten out probe lists
-    flat_probes = {}
-    for gene, cds_psets in p2.items():
-        for probeset in cds_psets:
-            for k, v in probeset.items():
-                if any([k == 'Probes', k == 'Target Seq']):
-                    continue
-                probeset['Probes'][k] = v
-        p_list = [x['Probes'] for x in cds_psets]
-        probes = pd.concat(p_list, ignore_index=True)
-        flat_probes[gene] = probes
-
-    # Give each probe a name
-    for gene, probes in flat_probes.items():
-        name_tuple = list(zip(probes['Name'], probes['CDS Region #'].map(str), probes['Probe Position*'].map(str)))
-        probes['Probe Name'] = list(map('-'.join, name_tuple))
-    return flat_probes
-
-
 def batch_blast_probes(cds_org, debug, max_probes, min_probes, organism, probes, timeout):
     g_set = defaultdict(dict)
     db = dataset.connect("sqlite:///db/probes.db")
@@ -233,7 +212,11 @@ def main(target_genes, max_probes=24, min_probes=24, timeout=120, debug=False, p
         probes = b_designer.design(passed_genes, min_probes, )
         b_designer.close()
     elif probe_design == 'oligoarray':
-        pass
+        import oligoarray_designer as od
+        oda = od.Oligoarray()
+        probes = oda.design(passed_genes)
+        probes = [[probe] for probe in probes]
+        print("DONE OLIGOAARAY")
     else:
         raise Exception("{} designer not recognized".format(probe_design))
     if debug:
