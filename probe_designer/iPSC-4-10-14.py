@@ -183,8 +183,9 @@ import pandas as pd
 target_genes = [x.strip() for x in genes.split(",")]
 del_probes(target_genes, organism='mouse')
 probes = main(target_genes, min_probes=16, max_probes=200,
-              timeout=60, debug=True, organism='mouse')
-dir_name = "passed_probes_iPSCc_1"
+              timeout=60, debug=True, organism='mouse',
+              probe_design='oligoarray')
+dir_name = "passed_probes_iPSCc_oligoarray"
 n_probes = 0
 p = [(gene, masking, len(get_probes(gene, "mouse", masking)))
      for gene in target_genes for masking in [5,4,3]]
