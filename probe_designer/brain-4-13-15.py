@@ -306,7 +306,8 @@ target_genes = list(target_genes)
 print(len(target_genes))
 del_probes(target_genes, organism='mouse')
 probes = main(target_genes, min_probes=16, max_probes=200,
-              timeout=60, debug=True, organism='mouse')
+              timeout=60, debug=True, organism='mouse',
+              probe_design='oligoarray')
 dir_name = "passed_probes_Brain-4-13-15"
 n_probes = 0
 p = [(gene, masking, len(get_probes(gene, "mouse", masking)))

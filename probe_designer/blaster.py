@@ -193,6 +193,9 @@ def filter_probes_based_on_blast(gene, blast_hits, probe_df, max_probes=24, min_
     bad_hits = sorted(bad_hits, key=lambda x: [x[i] for i in range(1, 10)])
     # number of probes to design
     n_probes = min((len(blast_hits), max_probes))
+
+
+
     while n_probes >= min_probes:
         select_probes = [x[0] for x in bad_hits[:n_probes]]
         i2 = Counter([hit for probe in select_probes for hit in blast_hits[probe]])

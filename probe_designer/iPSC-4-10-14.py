@@ -188,7 +188,7 @@ probes = main(target_genes, min_probes=16, max_probes=200,
 dir_name = "passed_probes_iPSCc_oligoarray"
 n_probes = 0
 p = [(gene, masking, len(get_probes(gene, "mouse", masking)))
-     for gene in target_genes for masking in [5,4,3]]
+     for gene in target_genes for masking in [6]]
 print(p)
 for gene in target_genes:
     try:
@@ -196,7 +196,7 @@ for gene in target_genes:
     except:
         pass
     passed = False
-    for masking in [5,4,3]:
+    for masking in [6]:
         probes = get_probes(gene, "mouse", masking)
         print(gene, masking, len(probes))
         if len(probes) > 16:

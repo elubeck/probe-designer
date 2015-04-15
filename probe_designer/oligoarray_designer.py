@@ -55,9 +55,9 @@ class Oligoarray(object):
             for n, seq in enumerate(data['CDS List']):
                 if len(seq) < 20:
                     continue
-                print("Adding {} to design list".format(gene))
+                print("Adding {} cds #{} to design list".format(gene, n))
                 #TODO: Put probe design here
-                temp_name = "{}-{}-{}".format(gene, n, data['# Isoforms'])
+                temp_name = "{}${}${}".format(gene, n, data['# Isoforms'])
                 fasta.add_seq(temp_name, seq)
         od = OligoarrayDesigner()
         results = od.run(fasta.location, min_tm=70, max_tm=100, cross_hyb_temp=72,secondary_struct_temp=76,
@@ -65,7 +65,7 @@ class Oligoarray(object):
         for seq_code, table in results:
             seq = fasta.seqs[seq_code]
             codename = fasta.codes[seq_code]
-            name, cds_region, num_isoform = codename.split('-')
+            name, cds_region, num_isoform = codename.split('$')
             print(seq_code, codename, name)
             table['Name'] = table['Name'].map(lambda x: fasta.codes[x])
             probes.append( {'Name': name, 'Masking': 6,
@@ -107,11 +107,14 @@ class OligoarrayDesigner(object):
                    p=min_gc, P=max_gc, m=prohibited_seqs, N=num_processors,
                    g=min_spacing)
         results = OligoArrayResults(output_file)
+        p = []
         for name, passed_probe in groupby(results.parse(), lambda x:x['Name']):
             so_probes = sorted(passed_probe, key=lambda x: x['Probe Position*'])
             probes_table = pd.DataFrame(so_probes)
             probes_table['Probe #'] = probes_table.index
-            yield (name, probes_table)
+            p.append((name, probes_table))
+        results.close()
+        return p
             
 
     def __init__(self, blast_db="/home/eric/blastdb/old_format/mouse_refseq_rnaDB"):
@@ -141,10 +144,6 @@ class OligoArrayResults(object):
     
     def __init__(self, location):
         self.location = location
-        try:
-            self.close()
-        except:
-            pass
 
             
             

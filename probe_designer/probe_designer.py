@@ -214,19 +214,22 @@ def main(target_genes, max_probes=24, min_probes=24, timeout=120, debug=False, p
     elif probe_design == 'oligoarray':
         import oligoarray_designer as od
         oda = od.Oligoarray()
+        pd = dict(passed_genes.items()[:15])
         probes = oda.design(passed_genes)
         probes = [[probe] for probe in probes]
         print("DONE OLIGOAARAY")
     else:
         raise Exception("{} designer not recognized".format(probe_design))
     if debug:
-        write_folder = Path("debug").joinpath("bsearch")
-        try:
-            write_folder.mkdir(parents=True)
-        except:
-            pass
-        write_path = write_folder.joinpath("{}.csv".format(arrow.now()))
-        pd.DataFrame(probes).to_csv(str(write_path))
+        pass
+        # write_folder = Path("debug").joinpath("bsearch")
+        # try:
+        #     write_folder.mkdir(parents=True)
+        # except
+        :
+        #     pass
+        # write_path = write_folder.joinpath("{}.csv".format(arrow.now()))
+        # pd.DataFrame(probes).to_csv(str(write_path))
     g_set = batch_blast_probes(cds_org, debug, max_probes, min_probes, organism, probes, timeout)
     return g_set
 
