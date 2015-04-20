@@ -56,7 +56,7 @@ def maximize_masking(probes, max_probes=24):
         p2[gene] = m_dist[highest_key]
     return p2
 
-def batch_blast_probes(cds_org, debug, max_probes, min_probes, organism, probes, timeout):
+def batch_blast_probes(cds_org, debug, max_probes, min_probes, organism, probes, timeout, local=False):
     g_set = defaultdict(dict)
     db = dataset.connect("sqlite:///db/probes.db")
     p_table = db[organism]
@@ -98,13 +98,7 @@ def batch_blast_probes(cds_org, debug, max_probes, min_probes, organism, probes,
     print("Blasting: {} total probes".format(len(df)))
     for i in range(0, len(df), chunk_size):
         sub_df = df2.iloc[i:i+chunk_size]
-        print("Blasting: {} to {}".format(i, i+chunk_size-1))
-        blaster.blast_probes('', sub_df, timeout=1800, debug=False, organism=cds_org)
-        # sub_bres = []
-        # b_res.update(sub_bres)
-    print("Getting blast results from DB")
-    #b_res = blaster.check_db(df, organism=cds_org)
-    #b_res = blaster.blast_probes('', df, timeout=1800, debug=False, organism=cds_org)
+        blaster.blast_probes('', sub_df, timeout=1800, debug=False, organism=cds_org, local=local)
     for gene, sub_df in df.groupby(['Name']):
         b_res = blaster.check_db(sub_df, organism=cds_org)
         if len(b_res) == 0:
@@ -122,10 +116,22 @@ def batch_blast_probes(cds_org, debug, max_probes, min_probes, organism, probes,
                 continue
             print(len(passed), gene, masking)
             g_set[gene][masking] = passed
-            for n, line in passed.T.to_dict().items():
-                p_table.insert(line)
+            # for n, line in passed.T.to_dict().items():
+            #     p_table.insert(line)
+            p_table.insert_many(passed.T.to_dict().values())
             print("Probeset {}, {} added to table".format(gene, masking))
     return g_set
+
+def filter_probes(gene, sub_df, b_res, max_probes, min_probes, debug, max_false_hits):
+    t_res = {probe:b_res.get(probe, [""]) for probe in v['Probe Name']}
+    try:
+        passed = blaster.filter_probes_based_on_blast(gene, t_res, v, max_probes=max_probes,
+                                                            min_probes=min_probes, debug=debug,
+                                                            max_false_hits=old_div(min_probes, 2))
+    except blaster.BlastError as e:
+        print("Blast Failed for {}".format(gene))
+    return (gene, passed)
+
 
 def blast_probes(cds_org, debug, max_probes, min_probes, organism, probes, timeout):
     g_set = defaultdict(dict)
@@ -170,6 +176,9 @@ def blast_probes(cds_org, debug, max_probes, min_probes, organism, probes, timeo
     # print("Failed on: {}".format(", ".join(failed_probes)))
     return g_set
 
+def reverse_complement(seq):
+    complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
+    return "".join([complement[c] for c in seq])[::-1]
 
 def main(target_genes, max_probes=24, min_probes=24, timeout=120, debug=False, parallel=True, organism="mouse", probe_design='biosearch'):
     b_org = organism.lower()
@@ -187,6 +196,9 @@ def main(target_genes, max_probes=24, min_probes=24, timeout=120, debug=False, p
         try:
             cds = get_seq.CDS(gene, cds_org).run()
             if len(''.join(cds['CDS List'])) > (20 * min_probes):
+                rc_cds = [reverse_complement(c)
+                                   for c in cds['CDS List']]
+                cds['CDS List'] = rc_cds
                 passed_genes[gene] = cds
             else:
                 print("CDS too short of %s at %int" % (gene, len(''.join(cds['CDS List']))))
@@ -215,7 +227,7 @@ def main(target_genes, max_probes=24, min_probes=24, timeout=120, debug=False, p
         import oligoarray_designer as od
         oda = od.Oligoarray()
         pd = dict(passed_genes.items()[:15])
-        probes = oda.design(passed_genes)
+        probes = oda.design(passed_genes, ml=35, Ml=35, max_tm=103, x_hyb=68)
         probes = [[probe] for probe in probes]
         print("DONE OLIGOAARAY")
     else:
@@ -226,7 +238,7 @@ def main(target_genes, max_probes=24, min_probes=24, timeout=120, debug=False, p
         # try:
         #     write_folder.mkdir(parents=True)
         # except
-        :
+        #
         #     pass
         # write_path = write_folder.joinpath("{}.csv".format(arrow.now()))
         # pd.DataFrame(probes).to_csv(str(write_path))

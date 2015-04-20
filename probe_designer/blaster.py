@@ -43,6 +43,40 @@ def probe_df_to_fasta(probe_df):
     return fasta
 
 
+def local_blast_query(query, max_time=120, max_iterations=10, organism='"Mus musculus"[porgn:__txid10090]'):
+    """
+    Blast fasta query via NCBI qblast.
+    Requires web access.  Qblast often times out so request is killed after max_time
+    and repeated for max_iterations.
+    :param query: Fasta string
+    :param max_time: Maximum amount of time in seconds to wait for a response from NCBI
+    :param max_iterations: Maximum times to request from NCBI
+    :return: a handle to an xml formatted blast result
+    """
+    from Bio.Blast.Applications import NcbiblastnCommandline as blastn
+    query_file = "temp/blast_query.fasta"
+    output_file = "temp/blast_res.xml"
+    with open(query_file, "w") as f:
+        f.write(query)
+    res = blastn(query=query_file, db="refseq_rna_mouse", out=output_file, outfmt=5,
+                 word_size=11, num_threads=8)
+    res()
+    print("DONE BLAST INNER LOOP")
+    output_handle = open(output_file, 'r')
+    return output_handle
+
+def test():
+    # fasta_query = ">BOB1\nATGCATGCATGCATGCATGCATGC"
+
+    fasta_query = ">BOB1\naaatccgtgtttatccgatatgttgttggtgagtttc"
+    organism='"Mus musculus"[porgn:__txid10090]'
+    res = local_blast_query(fasta_query, max_time=timeout, organism=organism)
+    # gene_hits = parse_hits(res)
+    # write_db(gene_hits, organism)
+    # import time
+    # print("Taking a minute")
+    # time.sleep(60)
+
 def blast_query(query, max_time=120, max_iterations=10, organism='"Mus musculus"[porgn:__txid10090]'):
     """
     Blast fasta query via NCBI qblast.
@@ -108,32 +142,43 @@ def check_db(probe_df, organism):
 
 def write_db(hits, organism):
     blast_table = blast_db[organism]
-    for query, v in hits.iteritems():
-        for hit in v:
-            blast_table.insert({'probe_name': query, 'hit': hit})
+    insert = [{'probe_name': query, 'hit': hit}
+              for query, v in hits.iteritems()
+              for hit in v]
+    blast_table.insert_many(insert)
 
-def blast_probes(gene, probe_df, timeout=120, debug=False, organism='"Mus musculus"[porgn:__txid10090]'):
+def blast_probes(gene, probe_df, timeout=120, debug=False, organism='"Mus musculus"[porgn:__txid10090]',
+                 local=False):
     """
     Runs entire blast routine for a given gene returning
     only the complementary hits for a probeset.  Stores result in a db.
     :param gene: Name of gene
     :param probe_df: Pandas DataFrame of probes
     :param debug: Whether to print program output
+    :param local: Run local or global blast
     :return:
     """
-    db_gene_hits = check_db(probe_df, organism)
+    # db_gene_hits = check_db(probe_df, organism)
+    db_gene_hits = {}
     exists = probe_df['Probe Name'].isin(db_gene_hits.keys())
     blast_these = exists != True
     blast_df = probe_df.ix[blast_these]
     if not blast_df.empty:
         print("Blasting {} of {} oligos".format(len(blast_df), len(probe_df)))
         fasta_query = probe_df_to_fasta(blast_df)
-        res = blast_query(fasta_query, max_time=timeout, organism=organism)
-        gene_hits = parse_hits(res)
+        if local == True:
+            if '10090' not in organism:
+                raise Exception("Organism not supported for local blast")
+            print("DOING LOCAL BLAST")
+            res = local_blast_query(fasta_query, max_time=timeout, organism=organism)
+            print("DONE LOCAL BLAST, PARSE AWAY")
+            gene_hits = parse_hits(res)
+            print("DONE PARSING")
+            res.close()
+        else:
+            res = blast_query(fasta_query, max_time=timeout, organism=organism)
+            gene_hits = parse_hits(res)
         write_db(gene_hits, organism)
-        import time
-        print("Taking a minute")
-        time.sleep(60)
 
 
 def flatten(l):
@@ -193,9 +238,6 @@ def filter_probes_based_on_blast(gene, blast_hits, probe_df, max_probes=24, min_
     bad_hits = sorted(bad_hits, key=lambda x: [x[i] for i in range(1, 10)])
     # number of probes to design
     n_probes = min((len(blast_hits), max_probes))
-
-
-
     while n_probes >= min_probes:
         select_probes = [x[0] for x in bad_hits[:n_probes]]
         i2 = Counter([hit for probe in select_probes for hit in blast_hits[probe]])
