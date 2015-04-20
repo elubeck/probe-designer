@@ -22,6 +22,11 @@ from Bio.Application import ApplicationError
 
 Entrez.email = 'elubeck@caltech.edu'
 
+def reverse_complement(seq):
+    complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
+    return [complement[c] for c in seq][::-1]
+
+
 class CDSError(Exception):
     def __init__(self, exception):
         Exception.__init__(self, exception)
@@ -207,6 +212,18 @@ class CDS(object):
         self.table = self.db[self.organism]
         self.date = arrow.utcnow()
 
+def dump_db_to_fasta(file_path, organism='"Mus musculus"[porgn:__txid10090]'):
+    db = dataset.connect("sqlite:///db/cds.db")
+    table = db[organism]
+    with open(file_path, 'w') as f:
+        for line in table.find():
+            for n,sub_seq in enumerate(line['CDS List'].split(",")):
+                fasta_str = ">{}$Block#{}\n{}\n".format(line['gene'],n, sub_seq)
+                f.write(fasta_str)
+    print("DONE")
+        
+# dump_db_to_fasta("cds.fasta")            
 if __name__ == '__main__':
-    cds = CDS("dazl").run()
-    print(len(''.join(cds['CDS List'])))
+    pass
+    # cds = CDS("dazl").run()
+    # print(len(''.join(cds['CDS List'])))
