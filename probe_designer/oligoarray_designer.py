@@ -43,11 +43,12 @@ class Oligoarray(object):
         return probe_set
 
 
-    def design(self, cds):
+    def design(self, cds, ml=30, Ml=30, max_tm=100, x_hyb=72):
         probes = []
         fasta = FastaFile()
+        fake_mask = 11
         for gene, data in cds.items():
-            probe_set = self.check_db(gene, 6)
+            probe_set = self.check_db(gene, fake_mask)
             if probe_set:
                 probes.extend(probe_set)
                 print("Found {}".format(gene))
@@ -60,7 +61,7 @@ class Oligoarray(object):
                 temp_name = "{}${}${}".format(gene, n, data['# Isoforms'])
                 fasta.add_seq(temp_name, seq)
         od = OligoarrayDesigner()
-        results = od.run(fasta.location, min_tm=70, max_tm=100, cross_hyb_temp=72,secondary_struct_temp=76,
+        results = od.run(fasta.location, min_length=ml, max_length=Ml, min_tm=70, max_tm=100, cross_hyb_temp=x_hyb,secondary_struct_temp=76,
                 min_gc=35, max_gc=70)
         for seq_code, table in results:
             seq = fasta.seqs[seq_code]
@@ -68,14 +69,13 @@ class Oligoarray(object):
             name, cds_region, num_isoform = codename.split('$')
             print(seq_code, codename, name)
             table['Name'] = table['Name'].map(lambda x: fasta.codes[x])
-            probes.append( {'Name': name, 'Masking': 6,
+            probes.append( {'Name': name, 'Masking': fake_mask,
                             'Target Seq': seq, 'Probes': table,
                             'CDS Region #': n, '# isoforms': data['# Isoforms'],
                             })
             self.write_db(probes[-1])
-            masking = 6
             print("Designed %i probes for %s cds#:%i with masking %i"
-                    % (len(table), name, n, masking))
+                    % (len(table), name, n, fake_mask))
         fasta.close()
         return probes
 
@@ -112,6 +112,7 @@ class OligoarrayDesigner(object):
             so_probes = sorted(passed_probe, key=lambda x: x['Probe Position*'])
             probes_table = pd.DataFrame(so_probes)
             probes_table['Probe #'] = probes_table.index
+            # probes_table['"Probe (5'-> 3')"] =probes_table['"Probe (5'-> 3')"].map(reverse_complement) 
             p.append((name, probes_table))
         results.close()
         return p
