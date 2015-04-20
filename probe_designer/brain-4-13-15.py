@@ -304,14 +304,18 @@ more_genes = [u'Phactr2',
 target_genes = set([x.strip() for x in genes.split(",")] + map(str, more_genes))
 target_genes = list(target_genes)
 print(len(target_genes))
-del_probes(target_genes, organism='mouse')
+# del_probes(target_genes, o
+# rganism='mouse')
 probes = main(target_genes, min_probes=16, max_probes=200,
+
               timeout=60, debug=True, organism='mouse',
               probe_design='oligoarray')
-dir_name = "passed_probes_Brain-4-13-15"
+
+
+dir_name = "passed_probes_Brain-4-16-15"
 n_probes = 0
 p = [(gene, masking, len(get_probes(gene, "mouse", masking)))
-     for gene in target_genes for masking in [6,]]
+     for gene in target_genes for masking in [11,]]
 print(p)
 for gene in target_genes:
     try:
@@ -319,10 +323,10 @@ for gene in target_genes:
     except:
         pass
     passed = False
-    for masking in [6,]:
+    for masking in [11,]:
         probes = get_probes(gene, "mouse", masking)
         print(gene, masking, len(probes))
-        if len(probes) > 50:
+        if len(probes) >= 16:
             out_path = os.path.join(dir_name, gene + '_Mask={}_N={}.csv'.format(masking, len(probes)))
             pd.DataFrame(probes).to_csv(out_path)
             passed = True

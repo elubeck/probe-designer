@@ -181,30 +181,36 @@ import os
 import pandas as pd
 
 target_genes = [x.strip() for x in genes.split(",")]
-del_probes(target_genes, organism='mouse')
-probes = main(target_genes, min_probes=16, max_probes=200,
-              timeout=60, debug=True, organism='mouse',
-              probe_design='oligoarray')
-dir_name = "passed_probes_iPSCc_oligoarray"
+# del_probes(target_genes, organism='mouse')
+# probes = main(target_genes, min_probes=16, max_probes=200,
+#               timeout=60, debug=True, organism='mouse',
+#               probe_design='oligoarray')
+# dir_name = "passed_probes_iPSCc_oligoarray"
 n_probes = 0
 p = [(gene, masking, len(get_probes(gene, "mouse", masking)))
      for gene in target_genes for masking in [6]]
-print(p)
-for gene in target_genes:
-    try:
-        os.mkdir(dir_name)
-    except:
-        pass
-    passed = False
-    for masking in [6]:
-        probes = get_probes(gene, "mouse", masking)
-        print(gene, masking, len(probes))
-        if len(probes) > 16:
-            out_path = os.path.join(dir_name, gene + '_Mask={}_N={}.csv'.format(masking, len(probes)))
-            pd.DataFrame(probes).to_csv(out_path)
-            passed = True
-    if passed:
-        n_probes += 1
-    if passed == False:
-        print("Couldn't Find probes for {}".format(gene))
+essential = map(lambda x: x.lower(), ['Dnmt3b', 'Prdm14', 'bmp4', 'Axin2', 'Tet1', 'Id2', 'Gsk3b', 'Ezh2', 'Rest', 'Sdha', 'EED', 'Utf1', 'kdm4c', 'dnmt3a', 'Pecam1', 'bmpr1a', 'Smad4', 'Smad5', 'Nr0b1', 'tet2', 'mael', 'sycp3', 'Col5a2', 'klf4', 'Lifr', 'Suz12', 'Cdh1', 'Thy1', 'kdm3a', 'Fgfr2', 'ctcf', 'dazl', 'hdac1', 'Mycn', 'hdac2', 'Esrrb', 'Jarid2', 'Dnmt1', 'kdm3b', 'FoxO1', 'ehmt2', 'klf2', 'Sox2', 'Trim28', 'setdb1', 'Zfp42', 'Nanog', 'Tbx3', 'Smad1', 'Lin28b', 'METTL3', 'klf5', 'Fbxo15', 'Dppa2', 'Dppa3', 'Sp1', 'Foxa2', 'kdm6a', 'METTL14', 'kdm4d', 'Myc', 'tet3'])
+passed = [g for g in p if g[2]>24]
+long_essential = [ g for g in p
+                   if g[2]>=01
+                   if g[0].lower() in essential]
+# print(p)
+# for gene in target_genes:
+#     try:
+#         os.mkdir(dir_name)
+#     except:
+#         pass
+#     passed = False
+#     for masking in [6]:
+#         probes = get_probes(gene, "mouse", masking)
+#         print(gene, masking, len(probes))
+#         if len(probes) > 16:
+#             out_path = os.path.join(dir_name, gene + '_Mask={}_N={}.csv'.format(masking, len(probes)))
+#             pd.DataFrame(probes).to_csv(out_path)
+#             passed = True
+#     if passed:
+#         n_probes += 1
+#     if passed == False:
+#         # print("Couldn't Find probes for {}".format(gene))
+#         pass
 print(n_probes)
