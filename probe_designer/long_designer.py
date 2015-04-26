@@ -17,13 +17,10 @@ with open("/home/eric/chipdesign0415.txt", 'r') as f:
             cds = cds.strip('}\r\n"')
             probes.append((names[n], cds))
 
-from itertools import groupby
 longs_probes = {}
 for name, group in groupby(probes, lambda x: x[0]):
     longs_probes[name] = [v for k,v in group]
 
-import pandas as pd
-from random import getrandbits
 probe_df = pd.DataFrame(probes, columns=['Name', "Probe (5'-> 3')"])
 probe_df['Percent GC'] = ["NA" for i in range(len(probe_df))]
 probe_df['Probe Position*']= [getrandbits(10) for i in range(len(probe_df))]
