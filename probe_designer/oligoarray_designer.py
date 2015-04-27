@@ -136,9 +136,13 @@ class OligoArrayResults(object):
                 for row in tsvin:
                     off_targets = row[7].count(' ;')
                     if off_targets == 0:
-                        results.append({"Name":row[0], 'Probe Position*': int(row[1]),
+                        name = row[0]
+                        # Incase probes are chunked into blocks
+                        if "=Chunk:" in name:
+                            name = name.split('=Chunk:')[0]
+                        results.append({"Name": name, 'Probe Position*': int(row[1]),
                                         "Probe (5'-> 3')": row[-1],
-                                        "Percent GC":"NA"})
+                                        "Percent GC":"NA", "TM_DNA": float(row[-3])})
         except:
             pass
         return results
