@@ -96,17 +96,68 @@ class OligoarrayDesigner(object):
             min_length=30, max_length=30, max_dist=10000, min_tm=85, max_tm=90,
             secondary_struct_temp=65.0, cross_hyb_temp=65, min_gc=40, max_gc=60,
             prohibited_seqs=[6*'C', 6*'G', 6*'T', 6*'A'],
-            num_processors=-1, min_dist=2):
+            num_processors=-1, min_dist=2, timeout=10):
         min_spacing = max_length + min_dist
         prohibited_seqs = ";".join(prohibited_seqs)
         if num_processors == -1:
-            num_processors = cpu_count() * 3
-        oligoarray(i=input_file, d=self.blast_db, o=output_file, r=rejected_file,
-                   R=log_file, n=max_oligos, l=min_length, L=max_length, D=max_dist,
-                   t=min_tm, T=max_tm, s=secondary_struct_temp, x=cross_hyb_temp,
-                   p=min_gc, P=max_gc, m=prohibited_seqs, N=num_processors,
-                   g=min_spacing)
+            num_processors = cpu_count() * 2
+        passed = False
+        import arrow
+        import psutil
+        start_time = arrow.utcnow()
+        # Time after which to error out
+        end_time = start_time.replace(minutes=timeout,)
+        call = oligoarray(i=input_file, d=self.blast_db, o=output_file, r=rejected_file,
+                R=log_file, n=max_oligos, l=min_length, L=max_length, D=max_dist,
+                t=min_tm, T=max_tm, s=secondary_struct_temp, x=cross_hyb_temp,
+                p=min_gc, P=max_gc, m=prohibited_seqs, N=num_processors,
+                g=min_spacing, _bg=True)
+        # This loop doesn't let oligoarray run too long
+        # Oligoarray has an issue with rogue blastall processes running forever
+        no_blast = False
+        sleep_time = 0
+        while arrow.utcnow() < end_time:
+            if sleep_time % 60 == 0 and sleep_time != 0:
+                print("Blast running for: {:.01f} minutes".format(sleep_time/60))
+            if call._process_completed:
+                break
+            for proc in psutil.process_iter():
+                try:
+                    if proc.name() == 'blastall':
+                        create_time = arrow.get(proc._create_time)
+                        # Kill any blast thats run more than two minutes
+                        # This number will probably need to get adjusted for large DBs and slow cpus
+                        if arrow.utcnow() > create_time.replace(minutes=1, seconds=45):
+                            proc.kill()
+                            print("Killing {}".format(proc))
+                except:
+                    pass # Sometimes pid gets killed before this can happen
+            # Check that no blasts are running
+            # If so, oligoarray probably done            
+            try:
+                # Sometimes this fails
+                blast_proc = [proc for proc in psutil.process_iter() if proc.name() == 'blastall']
+            except:
+                pass
+            if not blast_proc:
+                # Make sure no blast two times in a row
+                if no_blast:
+                    break
+                no_blast = True
+            else:
+                no_blast = False
+            sleep(2)
+            sleep_time += 2
+        else:
+            call.kill()
+            for proc in psutil.process_iter():
+                if proc.name() == 'blastall':
+                    proc.kill()
+            print("Errored out of loop")
+        tot_time = (arrow.utcnow() - start_time).total_seconds()
+        print("Design took : {:.02f}".format(tot_time))
         results = OligoArrayResults(output_file)
+ 
         p = []
         for name, passed_probe in groupby(results.parse(), lambda x:x['Name']):
             so_probes = sorted(passed_probe, key=lambda x: x['Probe Position*'])
