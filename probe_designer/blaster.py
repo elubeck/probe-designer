@@ -1,14 +1,14 @@
-from future.builtins import object
-import signal
-from collections import Counter, defaultdict
-import sys
-from time import sleep
 import collections
-
-from Bio.Blast import NCBIWWW, NCBIXML
-import pandas as pd
+import signal
+import sys
+from collections import Counter, defaultdict
+from time import sleep
 
 import dataset
+import pandas as pd
+from Bio.Blast import NCBIWWW, NCBIXML
+from future.builtins import object
+
 blast_db = dataset.connect("sqlite:///db/blast.db")
 
 class TimeoutError(Exception):

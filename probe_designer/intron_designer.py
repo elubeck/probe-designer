@@ -1,9 +1,15 @@
-from __future__ import print_function, division
+from __future__ import division, print_function
+
+import csv
+import gzip
+import random
+from math import ceil
+
 from Bio import SeqIO
 from Bio.Seq import Seq
-import gzip
-import csv
+
 from oligoarray_designer import Oligoarray
+
 
 class Introns(object):
     """
@@ -81,16 +87,15 @@ if __name__ == "__main__":
     queue = []
     # Temporarily changed for zak genes
     undesigned_introns = ((n, i) for n, i in enumerate(introns)
-                          if i.name not in used_probes
-                          if i.name.lower().split("_intron")[0] in zak_genes)
+                          if i.name not in used_probes ) 
+                          # if i.name.lower().split("_intron")[0] in zak_genes)
     intron_1 =((n, i) for n, i in undesigned_introns
                        if i.name.endswith("Intron#1"))
     o = OligoarrayDesigner(blast_db='/home/eric/blastdb/old_format/mouse_introns_revcomp')
-    for n, i in intron_1:
-        print(n, i.name)
+    for design_num, (n, i) in enumerate(intron_1):
+        print(design_num, n, i.name)
         f_loc = "temp/temp.fasta"
         n_chunks = len(i.seq)//1000
-        import random
         # If too many chunks exist pick random ones
         tot_chunks = 150
         if n_chunks > tot_chunks:
@@ -109,12 +114,11 @@ if __name__ == "__main__":
         n_chunks = len(used)
         n_probes = 0
         n_iterations = 0 
-        from math import ceil
         # Set oligo number threshold to minimum to hit n_chunks 
         max_oligos = int(ceil(tot_chunks/n_chunks))
         # Reduce Computation Time: Only design small set of oligos for every chunk
         # Iterate this until at least 100 probes designed
-        p_num = 0
+        p_num = 9553553535  # Just a random number for initiatlization
         while n_probes < 100:
             print(max_oligos, n_iterations, n_chunks*max_oligos)
             res = o.run(f_loc, max_dist=1000, min_length=35, max_length=35, max_tm=100,
@@ -122,7 +126,16 @@ if __name__ == "__main__":
                         timeout=10)
             if len(res) > 1:
                 raise Exception("This shouldn't happen")
-            name, probes = res[0]
+            try:
+                name, probes = res[0]
+            except IndexError as e:
+                print("No Probes returned")
+                if n_iterations != 0 :
+                    print("Giving up making probes for {}".format(i.name))
+                    break
+                n_iterations += 1
+                max_oligos *= 2
+                continue
             n_probes = len(probes)
             if n_probes == p_num and n_iterations !=0:
                 print("Can't make more probes for {}".format(i.name))
@@ -134,7 +147,7 @@ if __name__ == "__main__":
                 p_num = n_probes
                 print("Trying to design more probes.  Last cycle designed {}".format(len(probes)))
                 continue
-            progress = n / tot_introns
+            progress = 100 * (n / tot_introns)
             print("{:.02f}%: {} with {} probes after {} iterations".format(progress, name, len(probes), n_iterations))
             probes['Percent GC'] = 100 * probes["Probe (5'-> 3')"].map(gc_count)
             probe_db.insert_many(probes.T.to_dict().values())

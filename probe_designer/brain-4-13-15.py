@@ -1,7 +1,10 @@
 __author__ = 'Eric'
-from probe_designer import main, del_probes, get_probes
 import os
+
 import pandas as pd
+
+from probe_designer import del_probes, get_probes, main
+
 genes = """
 Tbr1
 ,Rasgrf2

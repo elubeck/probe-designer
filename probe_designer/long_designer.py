@@ -1,9 +1,11 @@
 from __future__ import print_function
-from probe_designer import get_probes
+
 from itertools import groupby
-import pandas as pd
 from random import getrandbits
-from probe_designer import batch_blast_probes
+
+import pandas as pd
+
+from probe_designer import batch_blast_probes, get_probes
 
 with open("/home/eric/cds.fasta", 'r') as f1:
     names = []

@@ -2,24 +2,23 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import division, print_function
-from itertools import groupby
-from collections import defaultdict
+
 import os
 import traceback
+from collections import defaultdict
+from itertools import groupby
 
-from future.builtins import str
-from future.builtins import zip
-from future.builtins import map
-from past.utils import old_div
-from docopt import docopt
-import pandas as pd
 import arrow
-from pathlib import Path
 import dataset
+import pandas as pd
+from docopt import docopt
+from future.builtins import map, str, zip
+from past.utils import old_div
+from pathlib import Path
 
-import get_seq
 import biosearch_designer
 import blaster
+import get_seq
 
 
 doc = """

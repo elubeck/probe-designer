@@ -176,9 +176,11 @@ Foxa2
 ,Tcf7l2
 """
 
-from probe_designer import main, del_probes, get_probes
 import os
+
 import pandas as pd
+
+from probe_designer import del_probes, get_probes, main
 
 target_genes = [x.strip() for x in genes.split(",")]
 # del_probes(target_genes, organism='mouse')

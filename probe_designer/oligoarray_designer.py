@@ -1,14 +1,17 @@
-from __future__ import print_function, with_statement, division
-import dataset
-from multiprocessing import cpu_count
-from sh import oligoarray_cl as oligoarray
-import arrow 
+from __future__ import division, print_function, with_statement
+
 import csv
-from itertools import groupby
-import pandas as pd
-from random import getrandbits
 import signal
+from itertools import groupby
+from multiprocessing import cpu_count
+from random import getrandbits
 from time import sleep
+
+import arrow
+import dataset
+import pandas as pd
+from sh import oligoarray_cl as oligoarray
+
 
 class TimeoutError(Exception):
     pass
@@ -199,9 +202,10 @@ class OligoArrayResults(object):
 
     def parse(self):
         results = []
+        failed = []
         with open(self.location, "r") as f:
             tsvin = csv.reader(f, delimiter='\t')
-            for row in tsvin:
+            for n, row in enumerate(tsvin):
                 off_targets = row[7].count('; ')
                 if off_targets == 0:
                     name = row[0]
@@ -211,6 +215,11 @@ class OligoArrayResults(object):
                     results.append({"Name": name, 'Probe Position*': int(row[1]),
                                     "Probe (5'-> 3')": row[-1],
                                     "Percent GC":"NA", "TM_DNA": float(row[-3])})
+                else:
+                    failed.append(row)
+        # print("Dropped {} out of {} probes".format(n + 1 - len(results), n))
+                    print("Iterations: {}, Passed: {}, Failed: {}".format(n+1, len(results),
+                                                                          len(failed) ))
         return results
     
     def __init__(self, location):

@@ -1,24 +1,19 @@
-from __future__ import print_function, with_statement, division
-from future.builtins import str
-from future.builtins import map
-from future.builtins import range
-from future.builtins import object
-from operator import itemgetter
+from __future__ import division, print_function, with_statement
+
 import os
-import time
-from itertools import groupby
-from collections import defaultdict
 import re
+import time
+from collections import defaultdict
+from itertools import groupby
+from operator import itemgetter
 
-from Bio.Align.Applications import ClustalOmegaCommandline, MuscleCommandline
-from Bio import Entrez
-from Bio import SeqIO
-from Bio import AlignIO
-import numpy as np
-import dataset
 import arrow
+import dataset
+import numpy as np
+from Bio import AlignIO, Entrez, SeqIO
+from Bio.Align.Applications import ClustalOmegaCommandline, MuscleCommandline
 from Bio.Application import ApplicationError
-
+from future.builtins import map, object, range, str
 
 Entrez.email = 'elubeck@caltech.edu'
 
