@@ -199,21 +199,18 @@ class OligoArrayResults(object):
 
     def parse(self):
         results = []
-        try:
-            with open(self.location, "r") as f:
-                tsvin = csv.reader(f, delimiter='\t')
-                for row in tsvin:
-                    off_targets = row[7].count(' ;')
-                    if off_targets == 0:
-                        name = row[0]
-                        # Incase probes are chunked into blocks
-                        if "=Chunk:" in name:
-                            name = name.split('=Chunk:')[0]
-                        results.append({"Name": name, 'Probe Position*': int(row[1]),
-                                        "Probe (5'-> 3')": row[-1],
-                                        "Percent GC":"NA", "TM_DNA": float(row[-3])})
-        except:
-            pass
+        with open(self.location, "r") as f:
+            tsvin = csv.reader(f, delimiter='\t')
+            for row in tsvin:
+                off_targets = row[7].count('; ')
+                if off_targets == 0:
+                    name = row[0]
+                    # Incase probes are chunked into blocks
+                    if "=Chunk:" in name:
+                        name = name.split('=Chunk:')[0]
+                    results.append({"Name": name, 'Probe Position*': int(row[1]),
+                                    "Probe (5'-> 3')": row[-1],
+                                    "Percent GC":"NA", "TM_DNA": float(row[-3])})
         return results
     
     def __init__(self, location):
