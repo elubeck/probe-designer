@@ -224,9 +224,8 @@ class OligoarrayDesigner(object):
         results = OligoArrayResults(output_file)
 
         p = []
-        r_val = sorted(results.parse(), key= lambda x: x['Name'])
-        for name, passed_probe in groupby(r_val, lambda x:
-                                          x['Name']):
+        r_val = sorted(results.parse(), key=lambda x: x['Name'])
+        for name, passed_probe in groupby(r_val, lambda x: x['Name']):
             print(name)
             so_probes = sorted(passed_probe,
                                key=lambda x: x['Probe Position*'])
@@ -272,8 +271,9 @@ class OligoArrayResults(object):
                     })
                 else:
                     failed.append(row)
-            print("Rows: {}, Passed: {}, Failed: {}".format(
-                n + 1, len(results), len(failed)))
+            print("Rows: {}, Passed: {}, Failed: {}".format(n + 1,
+                                                            len(results),
+                                                            len(failed)))
         return results
 
     def __init__(self, location):
