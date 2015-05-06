@@ -190,8 +190,8 @@ class OligoarrayDesigner(object):
                         create_time = arrow.get(proc._create_time)
                         # Kill any blast thats run more than two minutes
                         # This number will probably need to get adjusted for large DBs and slow cpus
-                        if arrow.utcnow() > create_time.replace(minutes=1,
-                                                                seconds=45):
+                        if arrow.utcnow() > create_time.replace(minutes=3,
+                                                                seconds=00):
                             proc.kill()
                             print("Killing {}".format(proc))
                 except:
@@ -224,13 +224,14 @@ class OligoarrayDesigner(object):
         results = OligoArrayResults(output_file)
 
         p = []
-        for name, passed_probe in groupby(results.parse(), lambda x:
+        r_val = sorted(results.parse(), key= lambda x: x['Name'])
+        for name, passed_probe in groupby(r_val, lambda x:
                                           x['Name']):
+            print(name)
             so_probes = sorted(passed_probe,
                                key=lambda x: x['Probe Position*'])
             probes_table = pd.DataFrame(so_probes)
             probes_table['Probe #'] = probes_table.index
-            # probes_table['"Probe (5'-> 3')"] =probes_table['"Probe (5'-> 3')"].map(reverse_complement)
             p.append((name, probes_table))
         results.close()
         return p
@@ -247,6 +248,7 @@ class OligoArrayResults(object):
     def parse(self):
         results = []
         failed = []
+        n = -1
         with open(self.location, "r") as f:
             tsvin = csv.reader(f, delimiter='\t')
             for n, row in enumerate(tsvin):
@@ -256,18 +258,22 @@ class OligoArrayResults(object):
                     # Incase probes are chunked into blocks
                     if "=Chunk:" in name:
                         name = name.split('=Chunk:')[0]
+                    # Check to make sure designated target is in target list
+                    if name not in row[7]:
+                        failed.append(row)
+                        continue
                     results.append({
                         "Name": name,
                         'Probe Position*': int(row[1]),
                         "Probe (5'-> 3')": row[-1],
                         "Percent GC": "NA",
-                        "TM_DNA": float(row[-3])
+                        "TM_DNA": float(row[-3]),
+                        "Blast": '\t'.join(row)
                     })
                 else:
                     failed.append(row)
-                    # print("Dropped {} out of {} probes".format(n + 1 - len(results), n))
-                    print("Iterations: {}, Passed: {}, Failed: {}".format(
-                        n + 1, len(results), len(failed)))
+            print("Rows: {}, Passed: {}, Failed: {}".format(
+                n + 1, len(results), len(failed)))
         return results
 
     def __init__(self, location):
