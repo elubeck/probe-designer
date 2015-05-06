@@ -35,6 +35,8 @@ class Introns(object):
                 if count_introns:
                     used_names.append(ref_name)
                     intron_num = used_names.count(ref_name)
+                    if intron_num != 1:
+                        import pdb; pdb.set_trace()
                     fasta.name = "{}_Intron#{}".format(ref_name, intron_num)
                 else:
                     fasta.name = ref_name
@@ -72,6 +74,27 @@ class Intron(object):
 def gc_count(probe):
     return len([1 for c in probe.lower() if c in ['c', 'g']]) / len(probe)
 
+def get_record(gene_name, repeat_masking=False, count_introns=False):
+    hits = {}
+    ref_id = Introns().refseq_id
+    used_names = []
+    with gzip.open("db/refseq_intron_maskedLower.gzip.gz", 'rb') as f:
+        for fasta in SeqIO.parse(f, 'fasta'):
+            id = fasta.id.split("refGene_")[1]
+            ref_name = ref_id[id]
+            if gene_name.lower() in ref_name.lower():
+                print(fasta.id)
+                if count_introns:
+                    used_names.append(ref_name)
+                    intron_num = used_names.count(ref_name)
+                    fasta_tag =  "{}_Intron#{}".format(ref_name, intron_num)
+                else:
+                    fasta_tag = ref_name
+                if repeat_masking:
+                    fasta.seq = Seq("".join([c for c in fasta.seq
+                                                if c.isupper()]))
+                hits[fasta_tag] = fasta
+    return hits
 
 zak_genes = [
     'Albhk5', 'Ash1', 'Axin2', 'Bmi1', 'bmp4', 'bmpr1a', 'Brachyury', 'Cdh1',
@@ -130,7 +153,7 @@ if __name__ == "__main__":
         f_loc = "temp/temp.fasta"
         n_chunks = len(i.seq) // 1000
         # If too many chunks exist pick random ones
-        tot_chunks = 150
+        tot_chunks = 120
         if n_chunks > tot_chunks:
             sub_set = random.sample(range(0, len(i.seq), 1000), tot_chunks)
         used = []
@@ -142,8 +165,10 @@ if __name__ == "__main__":
                 if n_chunks > tot_chunks and chunk_start not in sub_set:
                     continue
                 seq_chunk = rev_comp[chunk_start:chunk_start + 1000]
-                fasta_str = ">{}=Chunk:{}\n{}\n".format(i.name, chunk_n,
-                                                        seq_chunk)
+                # fasta_str = ">{}=Chunk:{}\n{}\n".format(i.name, chunk_n,
+                #                                         seq_chunk)
+                # Removed Chunk identifier
+                fasta_str = ">{}\n{}\n".format(i.name, seq_chunk) 
                 f.write(fasta_str)
                 used.append(chunk_n)
         n_chunks = len(used)
@@ -155,7 +180,6 @@ if __name__ == "__main__":
         # Iterate this until at least 100 probes designed
         p_num = 9553553535  # Just a random number for initiatlization
         while n_probes < 100:
-            print(max_oligos, n_iterations, n_chunks * max_oligos)
             res = o.run(f_loc,
                         max_dist=1000,
                         min_length=35,
@@ -170,6 +194,7 @@ if __name__ == "__main__":
                 raise Exception("This shouldn't happen")
             try:
                 name, probes = res[0]
+                n_probes = len(probes)
             except IndexError as e:
                 print("No Probes returned")
                 if n_iterations != 0:
@@ -178,7 +203,7 @@ if __name__ == "__main__":
                 n_iterations += 1
                 max_oligos *= 2
                 continue
-            n_probes = len(probes)
+                n_probes = len(probes)
             if n_probes == p_num and n_iterations != 0:
                 print("Can't make more probes for {}".format(i.name))
             elif n_probes < 100:
