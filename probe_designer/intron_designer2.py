@@ -3,6 +3,7 @@ from __future__ import division, print_function
 import csv
 import gzip
 import random
+import sys
 from collections import Counter
 from math import ceil
 
@@ -12,6 +13,7 @@ from Bio.Seq import Seq
 
 from oligoarray_designer import Oligoarray, OligoarrayDesigner
 
+csv.field_size_limit(sys.maxsize) # Prevent field size overflow.
 
 def gc_count(probe):
     return len([1 for c in probe.lower() if c in ['c', 'g']]) / len(probe)
@@ -57,7 +59,7 @@ from pathlib import Path
 
 
 class IntronRetriever(object):
-    def get_intron(self, row, chrom_seq):
+    def get_intron(self, row, chrom_seq, chunk_size=1000):
         name2 = row['name2']
         coords_str = row['coords'].strip("[]")
         # Intron doesn't have assigned coords
@@ -76,7 +78,8 @@ class IntronRetriever(object):
                                        name=name2,
                                        id=name2,
                                        description='')
-                    yield record
+                    for start in range(0, len(record), chunk_size):
+                        yield record[start:start + chunk_size]
 
     def __iter__(self):
         for chromosome in self.table.distinct('chrom'):
@@ -99,42 +102,60 @@ class IntronRetriever(object):
         self.chromo_folder = Path("db/chromFaMasked/")
 
 
+def n_probes(chunk_list, probe_size=35):
+    # Get # of probes that could be made from set of gene chunks
+    return sum(len(chunk) // probe_size for chunk in chunk_list)
+
+
 if __name__ == "__main__":
     # First get used probes
     intron_db = dataset.connect("sqlite:///db/intron_probes.db")
     probe_db = intron_db['mouse']
+    print(len(list(probe_db.distinct("Name"))))
     used_probes = set([row['Name'] for row in probe_db.distinct("Name")])
     from tempfile import NamedTemporaryFile
     o = OligoarrayDesigner(
         blast_db='/home/eric/blastdb/old_format/transcribed_mouse')
-    # TODO: Implement Chunking of oligoarray runs
     chunksize = 5
+    probe_size = 35
     chunks = []
+    from progressbar import ProgressBar
+    p_bar = ProgressBar(maxval=25000).start()
     for n, gene in enumerate(IntronRetriever()):
-        name = gene[0].id.lower()
+        if gene[0].id in used_probes:
+            continue
+        # name = gene[0].id.lower()
         # if name not in zak_genes:
         #     continue
         chunks.append(gene)
         if len(chunks) == chunksize:
             with NamedTemporaryFile("w") as fasta_input:
-                for gene in chunks:
-                    SeqIO.write(gene, fasta_input,
+                # Break records into 1000nt chunks
+                for gene_chunks in chunks:
+                    if n_probes(gene_chunks) > 150:
+                        # Reduce potential probeset size to drop design time
+                        while n_probes(gene_chunks, probe_size) > 150:
+                            gene_chunks = random.sample(gene_chunks,
+                                                        len(gene_chunks) - 1)
+                    SeqIO.write(gene_chunks, fasta_input,
                                 'fasta')  # write all sequences to file
                 fasta_input.flush()
                 res = o.run(fasta_input.name,
                             max_dist=1000,
-                            min_length=35,
-                            max_length=35,
+                            min_length=probe_size,
+                            max_length=probe_size,
                             max_tm=100,
                             cross_hyb_temp=72,
                             min_tm=74,
                             secondary_struct_temp=76,
-                            max_oligos=1000,
-                            timeout=10)
-            # TODO: CHECK THAT GROUPBY is working
+                            max_oligos=100,
+                            timeout=15)
             for name, probes in res:
                 probes['Percent GC'] = 100 * probes["Probe (5'-> 3')"].map(
                     gc_count)
-                print(name, len(probes))
+                # print(name, len(probes))
                 probe_db.insert_many(probes.T.to_dict().values())
+            # print("{:.02f}%".format(100 * n / 25000))
+            p_bar.update(n)
             chunks = []
+    p_bar.finish()

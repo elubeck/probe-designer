@@ -155,9 +155,10 @@ class OligoarrayDesigner(object):
         start_time = arrow.utcnow()
         # Time after which to error out
         end_time = start_time.replace(minutes=timeout, )
+        results = OligoArrayResults()
         call = oligoarray(i=input_file,
                           d=self.blast_db,
-                          o=output_file,
+                          o=results.file.name,
                           r=rejected_file,
                           R=log_file,
                           n=max_oligos,
@@ -170,18 +171,20 @@ class OligoarrayDesigner(object):
                           x=cross_hyb_temp,
                           p=min_gc,
                           P=max_gc,
-                          m=prohibited_seqs,
                           N=num_processors,
                           g=min_spacing,
-                          _bg=True)
+                          _bg=True,
+                          m=prohibited_seqs,
+                          _tty_in=True # This was required after adding progressbar.  Don't know why.  Fishy
+                            )
         # This loop doesn't let oligoarray run too long
         # Oligoarray has an issue with rogue blastall processes running forever
         no_blast = False
         sleep_time = 0
         while arrow.utcnow() < end_time:
-            if sleep_time % 60 == 0 and sleep_time != 0:
-                print("Blast running for: {:.01f} minutes".format(sleep_time /
-                                                                  60))
+            # if sleep_time % 60 == 0 and sleep_time != 0:
+            #     print("Blast running for: {:.01f} minutes".format(sleep_time /
+            #                                                       60))
             if call._process_completed:
                 break
             for proc in psutil.process_iter():
@@ -193,7 +196,7 @@ class OligoarrayDesigner(object):
                         if arrow.utcnow() > create_time.replace(minutes=3,
                                                                 seconds=00):
                             proc.kill()
-                            print("Killing {}".format(proc))
+                            # print("Killing {}".format(proc))
                 except:
                     pass  # Sometimes pid gets killed before this can happen
             # Check that no blasts are running
@@ -220,13 +223,11 @@ class OligoarrayDesigner(object):
                     proc.kill()
             print("Errored out of loop")
         tot_time = (arrow.utcnow() - start_time).total_seconds()
-        print("Design took : {:.02f}".format(tot_time))
-        results = OligoArrayResults(output_file)
+        # print("Design took : {:.02f}".format(tot_time))
 
         p = []
         r_val = sorted(results.parse(), key=lambda x: x['Name'])
         for name, passed_probe in groupby(r_val, lambda x: x['Name']):
-            print(name)
             so_probes = sorted(passed_probe,
                                key=lambda x: x['Probe Position*'])
             probes_table = pd.DataFrame(so_probes)
@@ -242,13 +243,13 @@ class OligoarrayDesigner(object):
 
 class OligoArrayResults(object):
     def close(self):
-        os.remove(self.location)
+        self.file.close()
 
     def parse(self):
         results = []
         failed = []
         n = -1
-        with open(self.location, "r") as f:
+        with open(self.file.name, "r") as f:
             tsvin = csv.reader(f, delimiter='\t')
             for n, row in enumerate(tsvin):
                 off_targets = row[7].count('; ')
@@ -271,13 +272,14 @@ class OligoArrayResults(object):
                     })
                 else:
                     failed.append(row)
-            print("Rows: {}, Passed: {}, Failed: {}".format(n + 1,
-                                                            len(results),
-                                                            len(failed)))
+            # print("Rows: {}, Passed: {}, Failed: {}".format(n + 1,
+            #                                                 len(results),
+            #                                                 len(failed)))
         return results
 
-    def __init__(self, location):
-        self.location = location
+    def __init__(self,):
+        from tempfile import NamedTemporaryFile
+        self.file = NamedTemporaryFile('w')
 
 
 class FastaFile(object):
