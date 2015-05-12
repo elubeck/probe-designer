@@ -16,7 +16,7 @@ from oligoarray_designer import Oligoarray, OligoarrayDesigner
 csv.field_size_limit(sys.maxsize) # Prevent field size overflow.
 
 def gc_count(probe):
-    return len([1 for c in probe.lower() if c in ['c', 'g']]) / len(probe)
+    return len(1 for c in probe.lower() if c in ['c', 'g']) / len(probe)
 
 
 zak_genes = [
