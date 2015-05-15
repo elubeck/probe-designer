@@ -68,20 +68,11 @@ def blast_probes(probes, timeout=120, debug=False,):
     res.close()
     return gene_hits
 
-
-def flatten(l):
-    for el in l:
-        if isinstance(el, collections.Iterable) and not isinstance(el, basestring):
-            for sub in flatten(el):
-                yield sub
-        else:
-            yield el
-
 def probe_to_fasta(probe):
     return ">{Name},{Probe #}\n{Probe (5'-> 3')}\n".format(**probe)
                 
 def get_copynum(hits):
-    off_target = {name: counts[name] for name in hits}
+    off_target = {name: counts[name] for name in hits if name in counts.keys()}
     false_hits = sum(off_target.values())
     return false_hits
 
@@ -89,27 +80,36 @@ intron_db = dataset.connect("sqlite:///db/intron_probes.db")
 blast_db = dataset.connect("sqlite:///db/intron_blast.db")
 blast_table = blast_db['mouse']
 probe_db = intron_db['mouse']
-used_genes = list(probe_db.distinct("Name"))
-probes = list(probe_db.find(Name='Atg5'))
-probe_lookup = {"{Name},{Probe #}".format(**probe):probe["Probe (5'-> 3')"] for probe in probes}
-fasta_str = "".join(probe_to_fasta(probe) for probe in probes)
-res_handle = local_blast_query(fasta_str)
-match_thresh = 13
 strand = "+"
-if strand == "+":
-    skey = 1
-elif strand == '-':
-    skey = -1
-else:
-    raise Exception("BOB")
-hits = parse_hits(res_handle, strand=skey, match_thresh=match_thresh)
-db_vals = [{'query':query,'sequence':probe_lookup[query], 'match_len':match_thresh,
-            'target': query.split(',')[0], 'strand': strand,
-            'hits_encode':",".join(x.split(",")[0] for x in hit_l),
-            'hits_refseq':",".join(x.split(",")[1] for x in hit_l),
-            }
-            for query, hit_l in hits.iteritems()]
-blast_table.insert_many(db_vals)
+match_thresh = 18
+used_probes = set([row['target'] for row in blast_table.distinct("target", match_len=match_thresh)])
+used_genes = list(probe_db.distinct("Name"))
+from progressbar import ProgressBar
+p_bar = ProgressBar(maxval=len(used_genes)).start()
+for ngene, gene in enumerate(used_genes):
+    gname = gene['Name']
+    if gname in used_probes:
+        continue
+    # Format probes for blast and later lookup
+    probes = list(probe_db.find(Name=gname))
+    probe_lookup = {"{Name},{Probe #}".format(**probe):probe["Probe (5'-> 3')"] for probe in probes}
+    fasta_str = "".join(probe_to_fasta(probe) for probe in probes)
+    res_handle = local_blast_query(fasta_str)
+    if strand == "+":
+        skey = 1
+    elif strand == '-':
+        skey = -1
+    else:
+        raise Exception("BOB")
+    hits = parse_hits(res_handle, strand=skey, match_thresh=match_thresh)
+    db_vals = [{'query':query,'sequence':probe_lookup[query], 'match_len':match_thresh,
+                'target': query.split(',')[0], 'strand': strand,
+                'hits_encode':",".join(x.split(",")[0] for x in hit_l),
+                'hits_refseq':",".join(x.split(",")[1] for x in hit_l),}
+                for query, hit_l in hits.iteritems()]
+    blast_table.insert_many(db_vals)
+    p_bar.update(ngene)
+p_bar.finish()
 
 # hit_vals = []
 # for probe_name, matches in hits.iteritems():
