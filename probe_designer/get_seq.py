@@ -6,6 +6,7 @@ import time
 from collections import defaultdict
 from itertools import groupby
 from operator import itemgetter
+import tempfile
 
 import arrow
 import dataset
@@ -19,7 +20,7 @@ Entrez.email = 'elubeck@caltech.edu'
 
 def reverse_complement(seq):
     complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
-    return [complement[c] for c in seq][::-1]
+    return "".join(complement[c] for c in seq)[::-1]
 
 
 class CDSError(Exception):
@@ -67,23 +68,21 @@ class CDS(object):
         @param aligner: program to use for alignment
         @return: list of CDS
         """
-        import random
-        r_num = ''.join(map(str, random.sample(list(range(100)), 10)))
-        in_file = "%s_temp_variant_cds.fasta" % r_num
-        out_file = "%s_temp_variant_cds_aligned.fasta" % r_num
-        with open(in_file, 'w') as f:
-            SeqIO.write(seqs, f, 'fasta')
-        if aligner == 'muscle':
-            cline = MuscleCommandline(input=in_file,
-                                      out=out_file,)
-        elif aligner == 'clustalo':
-            cline = ClustalOmegaCommandline(infile=in_file,
-                                            outfile=out_file,)
-        try:
-            stdout, stderr = cline()
-        except:
-            raise CDSError("Muscle failed for {}".format(self.gene))
-        ali = AlignIO.read(out_file, format='fasta')
+        with tempfile.NamedTemporaryFile() as out_file:
+            with tempfile.NamedTemporaryFile('w') as f_in:
+                SeqIO.write(seqs, f_in, 'fasta')
+                f_in.flush()
+                if aligner == 'muscle':
+                    cline = MuscleCommandline(input=f_in.name,
+                                            out=out_file.name,)
+                elif aligner == 'clustalo':
+                    cline = ClustalOmegaCommandline(infile=f_in.name,
+                                                    outfile=out_file.name,)
+                try:
+                    stdout, stderr = cline()
+                except:
+                    raise CDSError("Muscle failed for {}".format(self.gene))
+            ali = AlignIO.read(out_file.name, format='fasta')
         ali_arr = np.array([list(rec) for rec in ali], np.character)
         letter_count = np.sum(ali_arr != '-',0)
         no_blanks = np.nonzero(letter_count==len(ali_arr))[0]
@@ -95,8 +94,6 @@ class CDS(object):
             if len(item) >= 20:
                 assert((ali_arr[0, item] == ali_arr[1, item]).all())
                 contiguous.append(''.join(ali_arr[0, item]))
-        os.remove(in_file)
-        os.remove(out_file)
         return contiguous
 
     def filter_seqs(self, handle):
