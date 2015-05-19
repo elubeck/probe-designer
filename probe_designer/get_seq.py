@@ -68,6 +68,8 @@ class CDS(object):
         @param aligner: program to use for alignment
         @return: list of CDS
         """
+        if len(seqs) == 1:
+            return [str(seqs[0].seq)]
         with tempfile.NamedTemporaryFile() as out_file:
             with tempfile.NamedTemporaryFile('w') as f_in:
                 SeqIO.write(seqs, f_in, 'fasta')
