@@ -1,11 +1,12 @@
 from __future__ import division, print_function, unicode_literals
 
+import copy
 import csv
-import gzip
 import random
+import signal
 import sys
 from collections import Counter, defaultdict
-from math import ceil
+from itertools import groupby
 from tempfile import NamedTemporaryFile
 
 import dataset
@@ -13,23 +14,52 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from pathlib import Path
+from progressbar import ProgressBar
 
 import blaster2
 import get_seq
-from oligoarray_designer import Oligoarray, OligoarrayDesigner
+from oligoarray_designer import OligoarrayDesigner
 
 csv.field_size_limit(sys.maxsize)  # Prevent field size overflow.
 
 
 def gc_count(probe):
+    """
+    Returns the % GC for a string
+    """
     return len([1 for c in probe.lower() if c in ['c', 'g']]) / len(probe)
 
 
+class TimeoutError(Exception):
+    pass
+
+
+class timeout(object):
+    def __init__(self, seconds=1, error_message='Timeout'):
+        self.seconds = seconds
+        self.error_message = error_message
+
+    def handle_timeout(self, signum, frame):
+        raise TimeoutError(self.error_message)
+
+    def __enter__(self):
+        signal.signal(signal.SIGALRM, self.handle_timeout)
+        signal.alarm(self.seconds)
+
+    def __exit__(self, type, value, traceback):
+        signal.alarm(0)
 
 
 # TODO: FINISH ME
 class mRNARetriever(object):
+    """
+    Gets mRNAs from mouse genome.
+    """
+
     def get_mRNA(self, target, chunk_size=1000):
+        """
+        Given a target(refseq name) returns the sequence of probes in increments of chunk_size.  Aligns all variants of a gene to ensure correct common sequence amongst alternatively spliced transcripts.
+        """
         hits = []
         for file_name in Path("db/").glob("mouse.*.rna.fna"):
             with open(str(file_name), 'r') as fin:
@@ -47,6 +77,9 @@ class mRNARetriever(object):
                     yield record[start:start + chunk_size]
 
     def __iter__(self):
+        """
+        Iterates over entire refseq gene list.
+        """
         with open("db/Refseq2Gene.tsv", "r") as f_in:
             ref_names = {
                 gene_name
@@ -67,13 +100,17 @@ def n_probes(chunk_list, probe_size=35):
 
 
 class ProbeDesigner(object):
-    def run_oligoarray(self, chunks):
+    def run_oligoarray(self, chunks, n_target_probes=150):
+        """
+        Wrapper code to run oligoarray over a list of sequences.
+        """
         with NamedTemporaryFile("w") as fasta_input:
             # Break records into 1000nt chunks
             for gene_chunks in chunks:
-                if n_probes(gene_chunks, self.probe_size) > 150:
+                if n_probes(gene_chunks, self.probe_size) > n_target_probes:
                     # Reduce potential probeset size to drop design time
-                    while n_probes(gene_chunks, self.probe_size) > 150:
+                    while n_probes(gene_chunks,
+                                   self.probe_size) > n_target_probes:
                         gene_chunks = random.sample(gene_chunks,
                                                     len(gene_chunks) - 1)
                 SeqIO.write(gene_chunks, fasta_input, 'fasta')
@@ -86,7 +123,7 @@ class ProbeDesigner(object):
                              cross_hyb_temp=self.cross_hyb_temp,
                              min_tm=self.min_tm,
                              secondary_struct_temp=self.secondary_struct_temp,
-                             max_oligos=100,
+                             max_oligos=n_target_probes,
                              timeout=15)
         for name, probes in res:
             probes['Percent GC'] = 100 * probes["Probe (5'-> 3')"].map(gc_count)
@@ -98,7 +135,6 @@ class ProbeDesigner(object):
             print("TODO: ADD to DB")
 
     def batch_design(self, target_list, chunksize=3):
-        from progressbar import ProgressBar
         p_bar = ProgressBar(maxval=len(target_list)).start()
         chunks = []
         n = 0
@@ -137,7 +173,6 @@ class ProbeDesigner(object):
 
 
 def filter_probes_by_blast(probes):
-
     def probe_to_fasta(probe):
         return ">{Name},{Probe #}\n{Probe (5'-> 3')}\n".format(**probe)
 
@@ -243,25 +278,37 @@ def filter_probes_by_blast(probes):
         return finished_probes
 
 
-
-def sub_seq_splitter(seq, size, gc_target=0.55, stride=1, spacing=2, gc_min=None, gc_max=None, o_mode=1):
-    assert(isinstance(seq, unicode))
+def sub_seq_splitter(seq, size,
+                     gc_target=0.55,
+                     stride=1,
+                     spacing=2,
+                     gc_min=None,
+                     gc_max=None,
+                     o_mode=1):
+    """
+    Takes sequence and designs best probes of given size closests to gc_target.
+    """
+    assert (isinstance(seq, unicode))
     # Generate all probes
-    from itertools import groupby
     probes = []
-    for seed in range(0, len(seq)-size, stride):
-        p_seq = seq[seed:seed+size]
+    for seed in range(0, len(seq) - size, stride):
+        p_seq = seq[seed:seed + size]
         p_gc = gc_count(p_seq)
         if gc_min and p_gc < gc_min:
             continue
         if gc_max and p_gc > gc_max:
             continue
-        probes.append({'start': seed-spacing, 'end': seed+size+spacing,
-                       'gc': p_gc, 'seq': p_seq})
+        probes.append({
+            'start': seed - spacing,
+            'end': seed + size + spacing,
+            'gc': p_gc,
+            'seq': p_seq
+        })
     probes = sorted(probes, key=lambda x: abs(gc_target - x['gc']))
 
     # Build list of overlapping probes
-    probe_indices = [set(range(probe['start'], probe['end'])) for probe in probes]
+    probe_indices = [set(range(probe['start'], probe['end']))
+                     for probe in probes]
     if o_mode == 1:
         overlapping = []
         for probe_n, probe_ind in enumerate(probe_indices):
@@ -269,18 +316,19 @@ def sub_seq_splitter(seq, size, gc_target=0.55, stride=1, spacing=2, gc_min=None
                 if i != probe_n:
                     if any(probe_ind & probe_indices[i]):
                         overlapping.append((probes[probe_n], probes[i]))
-        overlapping_2 = {probe['seq']: [hit for query, hit in over_probes]
-                            for probe, over_probes in groupby(overlapping, key=lambda x: x[0])}
+        overlapping_2 = {
+            probe['seq']: [hit for query, hit in over_probes]
+            for probe, over_probes in groupby(overlapping,
+                                              key=lambda x: x[0])
+        }
     if o_mode == 2:
         seq_lookup = {probe['seq']: probe for probe in probes}
-        from collections import defaultdict
         overlapping = defaultdict(list)
         for probe_n, probe_ind in enumerate(probe_indices):
             for i in range(probe_n, len(probe_indices)):
                 if i != probe_n:
                     if any(probe_ind & probe_indices[i]):
                         overlapping[probes[probe_n]['seq']].append(probes[i])
-        import copy
         overlapping_b = copy.deepcopy(overlapping)
         for k, v in overlapping.iteritems():
             pl = seq_lookup[k]
@@ -289,11 +337,17 @@ def sub_seq_splitter(seq, size, gc_target=0.55, stride=1, spacing=2, gc_min=None
         # Get probes that don't overlap anything!
         for seq in set(seq_lookup.keys()).difference(overlapping_b.keys()):
             overlapping_b[seq] = []
-        overlapping_2 = {seq: [hit for query, hit in over_probes][0]
-                         for seq, over_probes in groupby(overlapping_b.items(), key=lambda x: x[0])}
-            
-    # Group probes by difference from target gc
-    probe_groups = [(k, list(v)) for k,v in groupby(probes, key= lambda x:abs(gc_target - x['gc']))]
+        overlapping_2 = {
+            seq: [hit for query, hit in over_probes][0]
+            for seq, over_probes in groupby(overlapping_b.items(),
+                                            key=lambda x: x[0])
+        }
+
+        # Group probes by difference from target gc
+    probe_groups = [(k, list(v))
+                    for k, v in groupby(probes,
+                                        key=lambda x: abs(gc_target - x['gc']))
+                    ]
     probe_index = 0
     passed_probes = []
     disallowed_probes = []
@@ -302,14 +356,19 @@ def sub_seq_splitter(seq, size, gc_target=0.55, stride=1, spacing=2, gc_min=None
     while probe_index != len(probe_groups):
         gc, probe_group = probe_groups[probe_index]
         # Filter already overlapping probes and convert list of dict to list of seqs
-        probe_group = [probe['seq'] for probe in probe_group
-                       if probe['seq'] not in disallowed_probes]
+        # TODO:  This(set vs list comprehension) is a dirty hack that prevents probes that hit two different places from being chosen twice
+        probe_group = {
+            probe['seq']
+            for probe in probe_group if probe['seq'] not in disallowed_probes
+        }
         # Iterate until no probes overlap in probe_group
         if len(probe_group) > 1:
             n_iters = 0
             while True:
-                om = [(probe_seq, [overlapped for overlapped in overlapping_2[probe_seq] if overlapped['seq'] in probe_group])
-                            for probe_seq in probe_group]
+                om = [(probe_seq, [overlapped
+                                   for overlapped in overlapping_2[probe_seq]
+                                   if overlapped['seq'] in probe_group])
+                      for probe_seq in probe_group]
                 om = sorted(om, key=lambda x: len(x[1]), reverse=True)
                 # If worst probe doesn't overlap any other probes
                 if len(om[0][1]) == 0:
@@ -326,65 +385,92 @@ def sub_seq_splitter(seq, size, gc_target=0.55, stride=1, spacing=2, gc_min=None
         probe_index += 1
 
     # DEBUG_START
-    from collections import defaultdict
     passed_or = defaultdict(list)
     for probe in passed_probes:
         for probe_m in probes:
             if probe_m['seq'] == probe:
                 passed_or[probe].append(probe_m)
     dog_head = sorted([i['start'] for p in passed_or.values() for i in p])
-    dog_poop = [i2-i1 for i2, i1 in zip(dog_head[1:], dog_head[:-1])]
+    dog_poop = [i2 - i1 for i2, i1 in zip(dog_head[1:], dog_head[:-1])]
     for v in dog_poop:
-        if v <37:
+        if v < 37:
             raise Exception("Probe design fail")
     # DEBUG_END
     return passed_probes
 
-if __name__ == '__main__':
-    # genes = []
-    # with open("/home/eric/Downloads/candidategenes173.txt", "r") as f_in:
-    #     for line in f_in:
-    #         line = line.strip('\r\n')
-    #         if line:
-    #             genes.append(line.split('\t'))
-    # flat_genes = [gene for line in genes for gene in line]
-    # mr = mRNARetriever()
-    # cds_records = {}
-    # from collections import defaultdict
-    # gene_probes = defaultdict(list)
-    # from progressbar import ProgressBar
-    # pbar = ProgressBar(maxval=len(flat_genes)).start()
-    # failed = []
-    # for n, gene in enumerate(flat_genes):
-    #     try:
-    #         gene_records = [str(record.seq.reverse_complement())
-    #                             for record in mr.get_mRNA(gene, chunk_size=100000)]
-    #     except:
-    #         failed.append(gene)
-    #     cds_records[gene] = gene_records
-    #     for chunk in cds_records[gene]:
-    #         for probe in sub_seq_splitter(chunk, 35, gc_min=0.35, o_mode=2):
-    #             gene_probes[gene].append(probe)
-    #     pbar.update(n)
-    # pbar.finish()
-    # import json
-    # with open('brain_redundant.json', 'w') as f_out:
-    #     json.dump(cds_records, f_out)
-    # with open('brain_redundant_probes.json', 'w') as f_out:
-    #     json.dump(gene_probes, f_out)
-    # chunks = list(mRNARetriever().get_mRNA(flat_genes[0], chunk_size=10000))
-    import json
+
+def probe_set_refiner(pset, block_size=18):
+    """
+    Checks that probes don't hit the same target of block_size.  Drops probes if they do.  Returns a filtered probeset.
+    """
+    p_lookup = defaultdict(list)
+    flat_pfrags = []
+    for gene, probes in pset.iteritems():
+        for probe in probes:
+            for i in range(0, len(probe) - block_size):
+                p_lookup[probe[i:i + block_size]].append(gene)
+                flat_pfrags.append(probe[i:i + block_size])
+    # Get probes that hit multiple targets
+    counts = [(k, v) for k, v in Counter(flat_pfrags).iteritems() if v > 1]
+    counts = [(bad_probe, n_hits) for bad_probe, n_hits in counts
+              if len(set(p_lookup[bad_probe])) > 1]
+    for probe, n_hits in counts:
+        for target in p_lookup[probe]:
+            for n, probe_seq in enumerate(pset[target]):
+                if probe in probe_seq:
+                    del pset[target][n]
+    return pset
+
+
+def batch_design(genes, max_time=180):
+    db = dataset.connect("sqlite:///db/tf_mrna_probes.db")
+    p_table = db['unfiltered_probes']
+    cds_table = db['cds_table']
+    mr = mRNARetriever()
+    cds_records = {}
     gene_probes = defaultdict(list)
-    from progressbar import ProgressBar
-    pbar = ProgressBar(maxval=173).start()
-    n = 0
-    with open('/home/eric/brain_redundant.json', 'r') as f_in:
-        for gene, probes in json.load(f_in).iteritems():
-            for chunk in probes:
-                for probe in sub_seq_splitter(unicode(chunk), 35, gc_min=0.35, o_mode=2):
-                    gene_probes[gene].append(probe)
-            n += 1
-            pbar.update(n)
-        pbar.finish()
-    with open('/home/eric/brain_redundant_probes.json', 'w') as f_out:
-        json.dump(gene_probes, f_out)
+    pbar = ProgressBar(maxval=len(genes)).start()
+    failed = []
+    passed_set = {}
+    used = {g['target'] for g in p_table.distinct('target')}
+    for n, gene in enumerate(genes):
+        pbar.update(n)
+        if gene in used:
+            print("Found {}".format(gene))
+            gene_probes[gene] = [probe['seq']
+                                 for probe in p_table.find(target=gene)]
+            continue
+        try:
+            with timeout(seconds=max_time):
+                try:
+                    gene_records = [
+                        str(record.seq.reverse_complement())
+                        for record in mr.get_mRNA(gene,
+                                                  chunk_size=100000)
+                    ]
+                    rec_table = [
+                        {"target": gene,
+                         "seq": cds,
+                         "number": rec_num}
+                        for rec_num, cds in enumerate(gene_records)
+                    ]
+                    cds_table.insert_many(rec_table)
+                except:
+                    failed.append(gene)
+                cds_records[gene] = gene_records
+                for chunk in cds_records[gene]:
+                    for probe in sub_seq_splitter(unicode(chunk), 35,
+                                                  gc_min=0.35,
+                                                  o_mode=2):
+                        gene_probes[gene].append(probe)
+                    flat_p = [{'target': gene,
+                               'seq': probe} for probe in gene_probes[gene]]
+                    p_table.insert_many(flat_p)
+        except TimeoutError:
+            print("Timedout at {}".format(gene))
+    pbar.finish()
+    return gene_probes
+
+
+if __name__ == '__main__':
+    pass
