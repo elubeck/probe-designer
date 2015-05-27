@@ -20,7 +20,7 @@ Entrez.email = 'elubeck@caltech.edu'
 
 def reverse_complement(seq):
     complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
-    return "".join(complement[c] for c in seq)[::-1]
+    return "".join(complement[c] for c in seq.upper())[::-1]
 
 
 class CDSError(Exception):
