@@ -399,10 +399,12 @@ def sub_seq_splitter(seq, size,
     return passed_probes
 
 
-def probe_set_refiner(pset, block_size=18):
+def probe_set_refiner(pset_i, block_size=18):
     """
     Checks that probes don't hit the same target of block_size.  Drops probes if they do.  Returns a filtered probeset.
+    Makes the assumption that all probes from different sets that hit the same target must be dropped.  This assumption can be faulty in the case of non-mRNA targeting sequences such as adapters added to probes.  Prefered behavior in this case would be to drop nothing or only mRNA binding sequences.
     """
+    pset = copy.deepcopy(pset_i)
     p_lookup = defaultdict(list)
     flat_pfrags = []
     for gene, probes in pset.iteritems():
@@ -415,7 +417,7 @@ def probe_set_refiner(pset, block_size=18):
     counts = [(bad_probe, n_hits) for bad_probe, n_hits in counts
               if len(set(p_lookup[bad_probe])) > 1]
     for probe, n_hits in counts:
-        for target in p_lookup[probe]:
+        for target in set(p_lookup[probe]):
             for n, probe_seq in enumerate(pset[target]):
                 if probe in probe_seq:
                     del pset[target][n]
