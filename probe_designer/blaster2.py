@@ -49,6 +49,7 @@ def parse_hits(handle, strand=-1, match_thresh=13):
     #Parse blast hits
     gene_hits = defaultdict(list)
     for record in NCBIXML.parse(handle):
+        gene_hits[record.query] = [] # This was added so probes that couldn't match anything weren't dropped
         for alignment in record.alignments:
             for hsp in alignment.hsps:
                 #Check that hit is on opposite strand
@@ -148,11 +149,11 @@ def filter_probes(probe_table, off_target_thresh=7, min_probes=24):
     finished_probes = [probe_lookup[probe] for probe in passed_probes]
     return finished_probes
 
-intron_db = dataset.connect("sqlite:///db/intron_probes.db")
-blast_db = dataset.connect("sqlite:///db/intron_blast.db")
-blast_table = blast_db['mouse']
-probe_db = intron_db['mouse']
-dog_cat = filter_probes(list(blast_table.find(target='Pgk1')), )
+# intron_db = dataset.connect("sqlite:///db/intron_probes.db")
+# blast_db = dataset.connect("sqlite:///db/intron_blast.db")
+# blast_table = blast_db['mouse']
+# probe_db = intron_db['mouse']
+# dog_cat = filter_probes(list(blast_table.find(target='Pgk1')), )
 # strand = "+"
 # match_thresh = 18
 # used_probes = set([row['target'] for row in blast_table.distinct("target", match_len=match_thresh)])

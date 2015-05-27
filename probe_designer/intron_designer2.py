@@ -328,17 +328,24 @@ class ProbeFilter(object):
 
         
     
-    def blast2copynum(self, hits):
+    def blast2copynum(self, hits, drop_self=True):
+        """
+        drop_self = True: make sure probes that probes that hit themselves are not counted in blast tally
+        """
         hit_vals = []
         for probe_name, matches in hits.iteritems():
             gene_name = probe_name.split(",")[0]
-            gencode_id, refseq = map(list, zip(*[match.split(',')
-                                                    for match in matches]))
-            if not gene_name in refseq:
-                continue
-                bad_count += 1
-                # raise Exception("Query not found in hits")
-            del gencode_id[refseq.index(gene_name)]
+            if any(matches): # Added incase no matches
+                gencode_id, refseq = map(list, zip(*[match.split(',')
+                                                        for match in matches]))
+            else:
+                gencode_id, refseq = [], []
+            if drop_self:
+                if not gene_name in refseq:
+                    continue
+                    bad_count += 1
+                    # raise Exception("Query not found in hits")
+                del gencode_id[refseq.index(gene_name)]
             try:
                 hit_vals.append((probe_name, self.get_copynum(gencode_id)))
             except:
@@ -351,13 +358,10 @@ class ProbeFilter(object):
             strand = self.strand
         fasta_str = "\n".join(">{}\n{}".format(*items) for items in probe_lookup.iteritems())
         res = blaster2.local_blast_query(fasta_str, db='gencode_tracks_reversed')
-        hits = blaster2.parse_hits(res, strand=strand, match_thresh=18)
+        hits = blaster2.parse_hits(res, strand=strand, match_thresh=match_thresh)
         return hits
 
     def run(self, flat_probes, gene_name, match_thresh=18, n_probes=48, max_off_target=10000):
-        # probe_lookup = {
-        #     "{Name},{Probe #}".format(**probe): probe["Probe (5'-> 3')"]
-        #     for probe in flat_probes}
         probe_lookup = {"{},{}".format(gene_name, n): probe for n, probe in enumerate(flat_probes)}
         res = self.run_blast(probe_lookup, match_thresh)
         hit_vals = self.blast2copynum(res)
@@ -389,9 +393,9 @@ class ProbeFilter(object):
 
 
 # intron_db = dataset.connect("sqlite:///db/intron_probes2.db")
-# intron_db_filtered = dataset.connect("sqlite:///db/intron_probes_filtered.db")
+intron_db_filtered = dataset.connect("sqlite:///db/intron_probes_filtered.db")
 # probe_db = intron_db['mouse']
-# filtered_probe_table = intron_db_filtered['mouse']
+filtered_probe_table = intron_db_filtered['mouse']
 
 # pf = ProbeFilter()
 # p_num = ProgressBar(maxval=len(list(probe_db.distinct("Name")))).start()
@@ -406,6 +410,37 @@ class ProbeFilter(object):
 #     for probe in passed_probes:
 #         filtered_probe_table.insert({'target':gene, 'seq':probe})
 # p_num.finish()
+
+# with open("/home/eric/tflistall.txt", "r") as fin:
+#     tfs = [line.strip('\r\n').lower() for line in fin]
+
+# with open('/home/eric/signalinglist.txt', 'r') as fin:
+#     signaling = [line.strip('\r\n').lower() for line in fin]
+
+# all_targets = set(tfs + signaling)
+# filtered_probe_table = intron_db_filtered['mouse']
+# n_probes = 0
+# all_probes = {}
+# for gene_d in filtered_probe_table.distinct('target'):
+#     gene = gene_d['target']
+#     probes = [p['seq'] for p in filtered_probe_table.find(target=gene)]
+#     if len(probes) >= 48 and gene.lower() in all_targets:
+#         all_probes[gene] = probes
+
+
+# import mRNA_designer
+# p_set = mRNA_designer.probe_set_refiner(all_probes)
+
+# filtered_probe_table = intron_db_filtered['mouse']
+# n_probes = 0
+# with open("/home/eric/intron_passed.csv", 'w') as f_out:
+#     for gene_d in filtered_probe_table.distinct('target'):
+#         gene = gene_d['target']
+#         probes = [p['seq'] for p in filtered_probe_table.find(target=gene)]
+#         if len(probes) > 24:
+#             f_out.write("{},{}\n".format(gene, len(probes)))
+#             n_probes += 1
+    
 
 
 # import blaster2
