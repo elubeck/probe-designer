@@ -12,7 +12,7 @@ genes = mouse.distinct('name2')
 def get_range(sequence, min_size=20):
     #Find longest contiguous sequences
     ranges = []
-    for k, g in groupby(enumerate(sequence), lambda (i,x):i-x):
+    for k, g in groupby(enumerate(sequence), lambda (i, x): i - x):
         group = map(itemgetter(1), g)
         start = group[0]
         end = group[-1]
@@ -29,7 +29,7 @@ def get_intron(targets, exons):
             start = int(gene['txStart'])
             end = int(gene['txEnd'])
             e_start = map(int, gene['exonStarts'].strip(',').split(","))
-            e_end   = map(int, gene['exonEnds'].strip(',').split(","))
+            e_end = map(int, gene['exonEnds'].strip(',').split(","))
             # gene['exon_pos'] = {p for start, end in zip(e_start, e_end)
             #                     for p in range(start, end + 1)}
         elif gene['strand'] == '-':
@@ -42,14 +42,14 @@ def get_intron(targets, exons):
             #                     for p in range(start, end + 1)}
         if e_start[0] != start:
             # if gap between start and 1st exon
-            intron1 = (start, e_start[0]-1)
+            intron1 = (start, e_start[0] - 1)
         elif len(e_start) != 1:
             # if multiple exons
-            intron1 = (e_end[0] + 1, e_start[1]-1)
+            intron1 = (e_end[0] + 1, e_start[1] - 1)
         else:
             # If only 1 exon
             intron1 = (e_end[0], end)
-        intron1 = sorted(intron1) # Need to flip tuple around if '-' strand
+        intron1 = sorted(intron1)  # Need to flip tuple around if '-' strand
         gene['intron1'] = intron1
         gene['intron1_len'] = intron1[1] - intron1[0]
         # Create a list of used positions
@@ -58,14 +58,14 @@ def get_intron(targets, exons):
     # Make set of points that are only intron1, not any other exons
     # exon_pos = {p for gene in intron_set for p in gene['exon_pos']}
     exon_pos = exons[gene['chrom']]  # Get all the exons for chromosome
-    sorted(intron_set, key=lambda x:x['intron1_len'])
+    sorted(intron_set, key=lambda x: x['intron1_len'])
     n_range = []
     for intronp1 in intron_set:
         intron = intronp1['intron1']
-        intron1_range = set(range(intron[0], intron[1]+1))
+        intron1_range = set(range(intron[0], intron[1] + 1))
         non_overlapping = sorted(intron1_range.difference(exon_pos))
         final_range = get_range(non_overlapping)
-        intron_len = sum([end-start for start, end in final_range])
+        intron_len = sum([end - start for start, end in final_range])
         n_range.append((intron_len, final_range))
     # Make the longest intron first
     n_range = sorted(n_range, key=lambda x: x[0], reverse=True)
@@ -86,7 +86,7 @@ def get_exon_pos(table):
         e_start = map(int, line['exonStarts'].strip(',').split(","))
         e_end = map(int, line['exonEnds'].strip(',').split(","))
         for start, end in zip(e_start, e_end):
-            for i in range(start, end+1):
+            for i in range(start, end + 1):
                 exon_space[chrom].add(i)
     return exon_space
 
@@ -126,8 +126,12 @@ with open("gene_pos.csv", 'w') as f:
         for record in mouse.find(name2=gene_name):
             start.append(int(record['txStart']))
             end.append(int(record['txEnd']))
-        r = {'strand': record['strand'], 'start': min(start),
-            'end': max(end), 'chrom': record['chrom']}
+        r = {
+            'strand': record['strand'],
+            'start': min(start),
+            'end': max(end),
+            'chrom': record['chrom']
+        }
         csv_f.writerow(r)
 
 # ranges3 = {}
@@ -144,7 +148,6 @@ with open("gene_pos.csv", 'w') as f:
 # flat = [dict(zip(cols, [name] + list(map(str, line))))
 #         for name, line in ranges3.iteritems()]
 # table2.insert_many(flat)
-
 
 # from matplotlib import pyplot as plt
 # import seaborn as sns

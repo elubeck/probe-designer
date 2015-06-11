@@ -20,7 +20,6 @@ import biosearch_designer
 import blaster
 import get_seq
 
-
 doc = """
 Usage: probe_designer.py TARGETS [-o=OUTPUT] [-m=MIN_PROBES] [-d=DEBUG] [-t=TIMEOUT] [-i=INPUT] [-or=ORGANISM]
 
@@ -36,10 +35,12 @@ Options:
     -or --organism Organism to Target(Default: mouse)
 """
 
+
 class Probe(object):
     def __init__(self, name, organism):
         self.name = name
         self.organism = organism
+
 
 def maximize_masking(probes, max_probes=24):
     passed = defaultdict(dict)
@@ -55,7 +56,10 @@ def maximize_masking(probes, max_probes=24):
         p2[gene] = m_dist[highest_key]
     return p2
 
-def batch_blast_probes(cds_org, debug, max_probes, min_probes, organism, probes, timeout, local=False):
+
+def batch_blast_probes(cds_org, debug, max_probes, min_probes, organism,
+                       probes, timeout,
+                       local=False):
     g_set = defaultdict(dict)
     db = dataset.connect("sqlite:///db/probes.db")
     p_table = db[organism]
@@ -65,8 +69,11 @@ def batch_blast_probes(cds_org, debug, max_probes, min_probes, organism, probes,
         gene = p_set[0]['Name']
         masking = p_set[0]['Masking']
         if any(p_table.find(Name=gene, Masking=masking)):
-            print("Getting probeset from DB for {} at masking {}".format(gene, masking))
-            g_set[gene][masking] = pd.DataFrame(list(p_table.find(Name=gene, Masking=masking)))
+            print("Getting probeset from DB for {} at masking {}".format(
+                gene, masking))
+            g_set[gene][masking] = pd.DataFrame(
+                list(p_table.find(Name=gene,
+                                  Masking=masking)))
         merged_pset = []
         for cds_region in p_set:
             reg = cds_region['Probes']
@@ -74,11 +81,12 @@ def batch_blast_probes(cds_org, debug, max_probes, min_probes, organism, probes,
             reg['Name'] = gene
             reg['Masking'] = masking
             merged_pset.append(reg)
-        probe_df = pd.concat(merged_pset,ignore_index=True)
+        probe_df = pd.concat(merged_pset, ignore_index=True)
         if len(probe_df) < min_probes:
             continue
         name_tuple = list(
-            zip(probe_df['Name'], probe_df['CDS Region #'].map(str), probe_df['Probe Position*'].map(str)))
+            zip(probe_df['Name'], probe_df['CDS Region #'].map(str),
+                probe_df['Probe Position*'].map(str)))
         probe_df['Probe Name'] = list(map('-'.join, name_tuple))
         mass_df.append(probe_df)
     if not mass_df:
@@ -86,28 +94,41 @@ def batch_blast_probes(cds_org, debug, max_probes, min_probes, organism, probes,
     df = pd.concat(mass_df, ignore_index=True, join='inner')
     #Choose first probe of every repeat.  Because multiple maskings are allowed, same probe can be chosen many times
     pre = len(df)
-    unique_index = [df.index[df['Probe Name']==name][0] for name in df['Probe Name'].unique()]
+    unique_index = [df.index[df['Probe Name'] == name][0]
+                    for name in df['Probe Name'].unique()]
     from random import shuffle
     shuffle(unique_index)
-    df2 = df.ix[unique_index] #Do this in a random order to reduce # of small blast runs
+    df2 = df.ix[unique_index
+                ]  #Do this in a random order to reduce # of small blast runs
     print(pre, len(df))
     #Try splitting probelist into smaller chunks probe sets
     chunk_size = 2000
     b_res = {}
     print("Blasting: {} total probes".format(len(df)))
     for i in range(0, len(df), chunk_size):
-        sub_df = df2.iloc[i:i+chunk_size]
-        blaster.blast_probes('', sub_df, timeout=1800, debug=False, organism=cds_org, local=local)
+        sub_df = df2.iloc[i:i + chunk_size]
+        blaster.blast_probes('', sub_df,
+                             timeout=1800,
+                             debug=False,
+                             organism=cds_org,
+                             local=local)
     for gene, sub_df in df.groupby(['Name']):
         b_res = blaster.check_db(sub_df, organism=cds_org)
         if len(b_res) == 0:
-            raise Exception("Error:  Nothing found in blast DB for query.  Something is wrong.")
+            raise Exception(
+                "Error:  Nothing found in blast DB for query.  Something is wrong.")
         for masking, v in sub_df.groupby(['Masking']):
-            t_res = {probe:b_res.get(probe, [""]) for probe in v['Probe Name']}
+            t_res = {
+                probe: b_res.get(probe, [""])
+                for probe in v['Probe Name']
+            }
             try:
-                passed = blaster.filter_probes_based_on_blast(gene, t_res, v, max_probes=max_probes,
-                                                                  min_probes=min_probes, debug=debug,
-                                                                  max_false_hits=old_div(min_probes, 2))
+                passed = blaster.filter_probes_based_on_blast(
+                    gene, t_res, v,
+                    max_probes=max_probes,
+                    min_probes=min_probes,
+                    debug=debug,
+                    max_false_hits=old_div(min_probes, 2))
             except blaster.BlastError as e:
                 print(traceback.format_exc())
                 print("Blast Failed for {}".format(gene))
@@ -121,18 +142,24 @@ def batch_blast_probes(cds_org, debug, max_probes, min_probes, organism, probes,
             print("Probeset {}, {} added to table".format(gene, masking))
     return g_set
 
-def filter_probes(gene, sub_df, b_res, max_probes, min_probes, debug, max_false_hits):
-    t_res = {probe:b_res.get(probe, [""]) for probe in v['Probe Name']}
+
+def filter_probes(gene, sub_df, b_res, max_probes, min_probes, debug,
+                  max_false_hits):
+    t_res = {probe: b_res.get(probe, [""]) for probe in v['Probe Name']}
     try:
-        passed = blaster.filter_probes_based_on_blast(gene, t_res, v, max_probes=max_probes,
-                                                            min_probes=min_probes, debug=debug,
-                                                            max_false_hits=old_div(min_probes, 2))
+        passed = blaster.filter_probes_based_on_blast(
+            gene, t_res, v,
+            max_probes=max_probes,
+            min_probes=min_probes,
+            debug=debug,
+            max_false_hits=old_div(min_probes, 2))
     except blaster.BlastError as e:
         print("Blast Failed for {}".format(gene))
     return (gene, passed)
 
 
-def blast_probes(cds_org, debug, max_probes, min_probes, organism, probes, timeout):
+def blast_probes(cds_org, debug, max_probes, min_probes, organism, probes,
+                 timeout):
     g_set = defaultdict(dict)
     db = dataset.connect("sqlite:///db/probes.db")
     p_table = db[organism]
@@ -141,27 +168,37 @@ def blast_probes(cds_org, debug, max_probes, min_probes, organism, probes, timeo
         gene = p_set[0]['Name']
         masking = p_set[0]['Masking']
         if any(p_table.find(Name=gene, Masking=masking)):
-            print("Getting probeset from DB for {} at masking {}".format(gene, masking))
-            g_set[gene][masking] = pd.DataFrame(list(p_table.find(Name=gene, Masking=masking)))
+            print("Getting probeset from DB for {} at masking {}".format(
+                gene, masking))
+            g_set[gene][masking] = pd.DataFrame(
+                list(p_table.find(Name=gene,
+                                  Masking=masking)))
         merged_pset = []
         for cds_region in p_set:
             reg = cds_region['Probes']
             reg['CDS Region #'] = cds_region['CDS Region #']
             reg['Name'] = gene
             merged_pset.append(reg)
-        probe_df = pd.concat(merged_pset,ignore_index=True)
+        probe_df = pd.concat(merged_pset, ignore_index=True)
         if len(probe_df) < min_probes:
             continue
         name_tuple = list(
-            zip(probe_df['Name'], probe_df['CDS Region #'].map(str), probe_df['Probe Position*'].map(str)))
+            zip(probe_df['Name'], probe_df['CDS Region #'].map(str),
+                probe_df['Probe Position*'].map(str)))
         probe_df['Probe Name'] = list(map('-'.join, name_tuple))
         try:
             #First Blast
-            b_res = blaster.blast_probes(gene, probe_df, timeout=timeout, debug=debug, organism=cds_org)
+            b_res = blaster.blast_probes(gene, probe_df,
+                                         timeout=timeout,
+                                         debug=debug,
+                                         organism=cds_org)
             #Find probeset based on blast
-            passed = blaster.filter_probes_based_on_blast(gene, b_res, probe_df, max_probes=max_probes,
-                                                          min_probes=min_probes, debug=debug,
-                                                          max_false_hits=old_div(min_probes, 2))
+            passed = blaster.filter_probes_based_on_blast(
+                gene, b_res, probe_df,
+                max_probes=max_probes,
+                min_probes=min_probes,
+                debug=debug,
+                max_false_hits=old_div(min_probes, 2))
         except blaster.BlastError as e:
             print(traceback.format_exc())
             print("Blast Failed for {}".format(gene))
@@ -175,11 +212,20 @@ def blast_probes(cds_org, debug, max_probes, min_probes, organism, probes, timeo
     # print("Failed on: {}".format(", ".join(failed_probes)))
     return g_set
 
+
 def reverse_complement(seq):
     complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
     return "".join([complement[c] for c in seq])[::-1]
 
-def main(target_genes, max_probes=24, min_probes=24, timeout=120, debug=False, parallel=True, organism="mouse", probe_design='biosearch'):
+
+def main(target_genes,
+         max_probes=24,
+         min_probes=24,
+         timeout=120,
+         debug=False,
+         parallel=True,
+         organism="mouse",
+         probe_design='biosearch'):
     b_org = organism.lower()
     if "mouse" == b_org:
         cds_org = '"Mus musculus"[porgn:__txid10090]'
@@ -188,19 +234,21 @@ def main(target_genes, max_probes=24, min_probes=24, timeout=120, debug=False, p
     elif "rabbit" == b_org:
         cds_org = '"Oryctolagus cuniculus"[porgn:__txid9986]'
     else:
-        raise IOError("Error organism {} not recognized.  Please add to program or reformat".format(organism))
+        raise IOError(
+            "Error organism {} not recognized.  Please add to program or reformat".format(
+                organism))
     assert (isinstance(target_genes, list))
     passed_genes = {}
     for gene in target_genes:
         try:
             cds = get_seq.CDS(gene, cds_org).run()
             if len(''.join(cds['CDS List'])) > (20 * min_probes):
-                rc_cds = [reverse_complement(c)
-                                   for c in cds['CDS List']]
+                rc_cds = [reverse_complement(c) for c in cds['CDS List']]
                 cds['CDS List'] = rc_cds
                 passed_genes[gene] = cds
             else:
-                print("CDS too short of %s at %int" % (gene, len(''.join(cds['CDS List']))))
+                print("CDS too short of %s at %int" %
+                      (gene, len(''.join(cds['CDS List']))))
         except get_seq.CDSError as e:
             print(traceback.format_exc())
             print(e)
@@ -219,7 +267,8 @@ def main(target_genes, max_probes=24, min_probes=24, timeout=120, debug=False, p
                 f.write("{}\n".format(cds))
         print("Writing to file3")
     if probe_design == 'biosearch':
-        b_designer = biosearch_designer.Biosearch(organism=b_org, variants=True)
+        b_designer = biosearch_designer.Biosearch(organism=b_org,
+                                                  variants=True)
         probes = b_designer.design(passed_genes, min_probes, )
         b_designer.close()
     elif probe_design == 'oligoarray':
@@ -241,7 +290,8 @@ def main(target_genes, max_probes=24, min_probes=24, timeout=120, debug=False, p
         #     pass
         # write_path = write_folder.joinpath("{}.csv".format(arrow.now()))
         # pd.DataFrame(probes).to_csv(str(write_path))
-    g_set = batch_blast_probes(cds_org, debug, max_probes, min_probes, organism, probes, timeout)
+    g_set = batch_blast_probes(cds_org, debug, max_probes, min_probes,
+                               organism, probes, timeout)
     return g_set
 
 
@@ -267,12 +317,12 @@ def get_optimal_probes(gene, organism, min_probes=12, max_probes=24):
         return stored_probes
     raise Exception("No good probeset for {}".format(gene))
 
+
 def del_probes(target_genes, organism='mouse'):
     db = dataset.connect("sqlite:///db/probes.db")
     p_table = db[organism]
     for gene in target_genes:
         p_table.delete(Name=gene)
-
 
 # genes = """nrn1,s100a10,rbpms,fbxo2,nefl,tppp3,eg435376,sncg,rbpms2,rlbp1l2,slc17a6,chrnb3,bc089491,cpne9,tubb3,opn4,
 # nppb,adcyap1,1700011l03Rik,prph,ctxn3,cd24a,prkcq,cdkn1c,gm687,trhde,igf1,rbms3,gm527,ndp,cyp1b1,rlbp1,
@@ -477,7 +527,6 @@ Albhk5
 debug = True
 timeout = 60
 
-
 if __name__ == '__main__':
     args = docopt(doc, )
     target_genes = [x.strip() for x in args['TARGETS'].strip(',').split(",")]
@@ -494,7 +543,8 @@ if __name__ == '__main__':
     else:
         timeout = 120
     if args['--input'] is not None:
-        target_genes = [x.strip() for x in args['--input'].strip(',').split(",")]
+        target_genes = [x.strip()
+                        for x in args['--input'].strip(',').split(",")]
     if args['--organism'] is not None:
         organism = args['--organism']
     else:

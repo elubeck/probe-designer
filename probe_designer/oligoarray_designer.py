@@ -157,27 +157,29 @@ class OligoarrayDesigner(object):
         # Time after which to error out
         end_time = start_time.replace(minutes=timeout, )
         results = OligoArrayResults()
-        call = oligoarray(i=input_file,
-                          d=self.blast_db,
-                          o=results.file.name,
-                          r=rejected_file,
-                          R=log_file,
-                          n=max_oligos,
-                          l=min_length,
-                          L=max_length,
-                          D=max_dist,
-                          t=min_tm,
-                          T=max_tm,
-                          s=secondary_struct_temp,
-                          x=cross_hyb_temp,
-                          p=min_gc,
-                          P=max_gc,
-                          N=num_processors,
-                          g=min_spacing,
-                          _bg=True,
-                          m=prohibited_seqs,
-                          _tty_in=True # This was required after adding progressbar.  Don't know why.  Fishy
-                            )
+        call = oligoarray(
+            i=input_file,
+            d=self.blast_db,
+            o=results.file.name,
+            r=rejected_file,
+            R=log_file,
+            n=max_oligos,
+            l=min_length,
+            L=max_length,
+            D=max_dist,
+            t=min_tm,
+            T=max_tm,
+            s=secondary_struct_temp,
+            x=cross_hyb_temp,
+            p=min_gc,
+            P=max_gc,
+            N=num_processors,
+            g=min_spacing,
+            _bg=True,
+            m=prohibited_seqs,
+            _tty_in=True
+            # This was required after adding progressbar.  Don't know why.  Fishy
+        )
         # This loop doesn't let oligoarray run too long
         # Oligoarray has an issue with rogue blastall processes running forever
         no_blast = False
@@ -278,7 +280,7 @@ class OligoArrayResults(object):
             #                                                 len(failed)))
         return results
 
-    def __init__(self,):
+    def __init__(self, ):
         from tempfile import NamedTemporaryFile
         self.file = NamedTemporaryFile('w')
 

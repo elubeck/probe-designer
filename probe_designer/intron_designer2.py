@@ -17,7 +17,8 @@ import blaster2
 
 from oligoarray_designer import Oligoarray, OligoarrayDesigner
 
-csv.field_size_limit(sys.maxsize) # Prevent field size overflow.
+csv.field_size_limit(sys.maxsize)  # Prevent field size overflow.
+
 
 def gc_count(probe):
     return len([1 for c in probe.lower() if c in ['c', 'g']]) / len(probe)
@@ -67,10 +68,10 @@ class IntronRetriever(object):
         row = self.table.find_one(name2=gene)
         chrom_code = row['chrom']
         chrom_path = self.chromo_folder.joinpath(
-                        "{}.fa.masked".format(chrom_code))
+            "{}.fa.masked".format(chrom_code))
         chrom_seq = SeqIO.read(str(chrom_path), 'fasta')
         return self.get_intron(row, chrom_seq, chunk_size)
-        
+
     def get_intron(self, row, chrom_seq, chunk_size=1000):
         name2 = row['name2']
         coords_str = row['coords'].strip("[]")
@@ -81,7 +82,7 @@ class IntronRetriever(object):
         for coord_pair in coords_str.split(", ("):
             start, end = map(int, coord_pair.strip("()").split(", "))
             seq = chrom_seq[start:end + 1]
-            if row['strand'] == "+": #TODO: CHECK THAT THIS IS CORRECT
+            if row['strand'] == "+":  #TODO: CHECK THAT THIS IS CORRECT
                 seq = seq.reverse_complement()
             # Drop masked sequences
             for sub_seq in seq.seq.split("N"):
@@ -119,13 +120,13 @@ def n_probes(chunk_list, probe_size=35):
     # Get # of probes that could be made from set of gene chunks
     return sum(len(chunk) // probe_size for chunk in chunk_list)
 
-class Designer(object):
 
+class Designer(object):
     def run_oligoarray(self, chunks, max_probes=150, probe_size=None):
         """
         Chunks is a list of gene fragments lists. [Gene[fragment_1...fragment_m],...Gene_n]
         """
-        assert(isinstance(chunks[0], list))
+        assert (isinstance(chunks[0], list))
         if not probe_size:
             probe_size = self.probe_size
         flat_probes = []
@@ -157,7 +158,8 @@ class Designer(object):
         return flat_probes
 
     def __iter__(self):
-        used_probes = set([row['Name'] for row in self.probe_db.distinct("Name")])
+        used_probes = set([row['Name']
+                           for row in self.probe_db.distinct("Name")])
         chunksize = 12
         probe_size = self.probe_size
         chunks = []
@@ -173,16 +175,17 @@ class Designer(object):
                 chunks = []
             p_bar.update(n)
         p_bar.finish()
-    
+
     def run(self, probe_size=35):
         pass
-    
+
     def __init__(self, organism='mouse'):
         intron_db = dataset.connect("sqlite:///db/intron_probes2.db")
         self.probe_db = intron_db[organism]
         self.o = OligoarrayDesigner(
-            blast_db ='/home/eric/blastdb/old_format/transcribed_mouse2')
+            blast_db='/home/eric/blastdb/old_format/transcribed_mouse2')
         self.probe_size = probe_size
+
 
 def design_introns():
     # First get used probes
@@ -264,16 +267,20 @@ def design_introns():
 # import mRNA_designer
 # flat_probes = probes.T.to_dict().values()
 
+
 class ProbeFilter(object):
     def run_batch(self):
         hit_val2 = sorted(hit_vals, key=lambda x: x[0].split(',')[0])
         finished_probes = {}
         # Iterate through every probeset
         for target, probe_set in groupby(hit_val2,
-                                            key=lambda x: x[0].split(',')[0]):
+                                         key=lambda x: x[0].split(',')[0]):
             pass
 
-    def filter_probes(self, probe_set, target, hits, probe_lookup, max_hits=10000, off_target_thresh=7, probe_num=48,):
+    def filter_probes(self, probe_set, target, hits, probe_lookup,
+                      max_hits=10000,
+                      off_target_thresh=7,
+                      probe_num=48, ):
         # Filter out probes with greater than max_hits off target hits
         probe_set = [probe for probe in probe_set if probe[1] < max_hits]
         # First pick probes with no off target hits
@@ -287,16 +294,17 @@ class ProbeFilter(object):
         off_target = Counter([])
 
         # Iterate until at least probe_num probes are picked or no more probes are available
-        while len(passed_probes) < probe_num and choice_index != len(remaining_probes):
+        while len(passed_probes) < probe_num and choice_index != len(
+            remaining_probes):
             selected = choices[choice_index]
             # Get off target hits for chosen probe
             off_target_hit = [k for k in hits[selected[0]]
-                                if target != k.split(',')[1]]
+                              if target != k.split(',')[1]]
             test_counter = off_target + Counter(off_target_hit)
 
             # Check if adding this probe makes anything go over off target threshold
             over_thresh = [True for k in test_counter.values()
-                            if k >= off_target_thresh]
+                           if k >= off_target_thresh]
             if not any(over_thresh):
                 passed_probes.append(selected)
                 off_target = test_counter
@@ -316,7 +324,7 @@ class ProbeFilter(object):
                 gc_min = gc_target - gc_range * multiplier
                 gc_max = gc_target + gc_range * multiplier
                 chosen_gc = [probe for probe, gc in probe_gc
-                                if gc_max >= gc >= gc_min]
+                             if gc_max >= gc >= gc_min]
                 multiplier += 1
             # If too many probes still exists choose a random subset
             if len(chosen_gc) != probe_num:
@@ -326,8 +334,6 @@ class ProbeFilter(object):
             passed_probes = [probe for probe, n in passed_probes]
         return passed_probes
 
-        
-    
     def blast2copynum(self, hits, drop_self=True):
         """
         drop_self = True: make sure probes that probes that hit themselves are not counted in blast tally
@@ -335,9 +341,9 @@ class ProbeFilter(object):
         hit_vals = []
         for probe_name, matches in hits.iteritems():
             gene_name = probe_name.split(",")[0]
-            if any(matches): # Added incase no matches
+            if any(matches):  # Added incase no matches
                 gencode_id, refseq = map(list, zip(*[match.split(',')
-                                                        for match in matches]))
+                                                     for match in matches]))
             else:
                 gencode_id, refseq = [], []
             if drop_self:
@@ -356,26 +362,44 @@ class ProbeFilter(object):
     def run_blast(self, probe_lookup, match_thresh, strand=None):
         if not strand:
             strand = self.strand
-        fasta_str = "\n".join(">{}\n{}".format(*items) for items in probe_lookup.iteritems())
-        res = blaster2.local_blast_query(fasta_str, db='gencode_tracks_reversed')
-        hits = blaster2.parse_hits(res, strand=strand, match_thresh=match_thresh)
+        fasta_str = "\n".join(">{}\n{}".format(*items)
+                              for items in probe_lookup.iteritems())
+        res = blaster2.local_blast_query(fasta_str,
+                                         db='gencode_tracks_reversed')
+        hits = blaster2.parse_hits(res,
+                                   strand=strand,
+                                   match_thresh=match_thresh)
         return hits
 
-    def run(self, flat_probes, gene_name, match_thresh=18, n_probes=48, max_off_target=10000):
-        probe_lookup = {"{},{}".format(gene_name, n): probe for n, probe in enumerate(flat_probes)}
+    def run(self, flat_probes, gene_name,
+            match_thresh=18,
+            n_probes=48,
+            max_off_target=10000):
+        probe_lookup = {
+            "{},{}".format(gene_name, n): probe
+            for n, probe in enumerate(flat_probes)
+        }
         res = self.run_blast(probe_lookup, match_thresh)
         hit_vals = self.blast2copynum(res)
-        filtered_probes = self.filter_probes(hit_vals, gene_name, res, probe_lookup, probe_num=n_probes, max_hits=max_off_target)
-        finished_probes = [probe_lookup[probe]
-                                    for probe in filtered_probes]
+        filtered_probes = self.filter_probes(hit_vals, gene_name, res,
+                                             probe_lookup,
+                                             probe_num=n_probes,
+                                             max_hits=max_off_target)
+        finished_probes = [probe_lookup[probe] for probe in filtered_probes]
         return finished_probes
 
     def get_copynum(self, hits):
-        off_target = {name: self.counts[name] for name in hits if name in self.counts.keys()}
+        off_target = {
+            name: self.counts[name]
+            for name in hits if name in self.counts.keys()
+        }
         false_hits = sum(off_target.values())
         return false_hits
 
-    def __init__(self, db='gencode_tracks_reversed', strand='+', copy_num='embryonic11.5'):
+    def __init__(self,
+                 db='gencode_tracks_reversed',
+                 strand='+',
+                 copy_num='embryonic11.5'):
         self.db = db
         if strand == '+':
             self.strand = 1
@@ -384,13 +408,18 @@ class ProbeFilter(object):
         if copy_num == 'embryonic11.5':
             # Get merged embryonic 11.5 encode data
             with open('db/encode_counts.csv', 'r') as f:
-                self.counts = {line[0]: float(line[1]) for line in csv.reader(f)}
+                self.counts = {
+                    line[0]: float(line[1])
+                    for line in csv.reader(f)
+                }
         elif copy_num == 'brain':
             with open('db/brain_counts.csv', 'r') as f:
-                self.counts = {line[0]: float(line[1]) for line in csv.reader(f)}
+                self.counts = {
+                    line[0]: float(line[1])
+                    for line in csv.reader(f)
+                }
         else:
             raise Exception('need a valid copy_num database')
-
 
 # intron_db = dataset.connect("sqlite:///db/intron_probes2.db")
 # intron_db_filtered = dataset.connect("sqlite:///db/intron_probes_filtered.db")
@@ -427,7 +456,6 @@ class ProbeFilter(object):
 #     if len(probes) >= 48 and gene.lower() in all_targets:
 #         all_probes[gene] = probes
 
-
 # import mRNA_designer
 # p_set = mRNA_designer.probe_set_refiner(all_probes)
 
@@ -440,8 +468,6 @@ class ProbeFilter(object):
 #         if len(probes) > 24:
 #             f_out.write("{},{}\n".format(gene, len(probes)))
 #             n_probes += 1
-    
-
 
 # import blaster2
 # strand = 1
@@ -487,7 +513,7 @@ class ProbeFilter(object):
 #     choices = sorted(list(remaining_probes), key=lambda x: x[1])
 #     choice_index = 0
 #     off_target = Counter([])
-#     probe_num = 48 
+#     probe_num = 48
 
 #     # Iterate until at least 24 probes are picked or no more probes are available
 #     while len(passed_probes) < probe_num and choice_index != len(remaining_probes):
