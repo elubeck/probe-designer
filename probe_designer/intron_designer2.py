@@ -393,9 +393,9 @@ class ProbeFilter(object):
 
 
 # intron_db = dataset.connect("sqlite:///db/intron_probes2.db")
-intron_db_filtered = dataset.connect("sqlite:///db/intron_probes_filtered.db")
+# intron_db_filtered = dataset.connect("sqlite:///db/intron_probes_filtered.db")
 # probe_db = intron_db['mouse']
-filtered_probe_table = intron_db_filtered['mouse']
+# filtered_probe_table = intron_db_filtered['mouse']
 
 # pf = ProbeFilter()
 # p_num = ProgressBar(maxval=len(list(probe_db.distinct("Name")))).start()

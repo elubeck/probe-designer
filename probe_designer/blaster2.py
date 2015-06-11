@@ -27,16 +27,18 @@ def local_blast_query(query, db='gencode_tracks.fas'):
     :param query: Fasta string
     :return: a handle to an xml formatted blast result
     """
-    output_file = "temp/blast_res.xml"
+    output_handle = NamedTemporaryFile(suffix='.xml')
     with NamedTemporaryFile("w") as f:
         f.write(query)
         f.flush()
-        res = blastn(query=f.name, db=db, out=output_file, outfmt=5,
-                    word_size=11, num_threads=8)
+        res = blastn(query=f.name,
+                     db=db,
+                     out=output_handle.name,
+                     outfmt=5,
+                     word_size=11,
+                     num_threads=8)
         res()
-    output_handle = open(output_file, 'r')
     return output_handle
-
 
 
 def parse_hits(handle, strand=-1, match_thresh=13):
@@ -49,7 +51,8 @@ def parse_hits(handle, strand=-1, match_thresh=13):
     #Parse blast hits
     gene_hits = defaultdict(list)
     for record in NCBIXML.parse(handle):
-        gene_hits[record.query] = [] # This was added so probes that couldn't match anything weren't dropped
+        gene_hits[record.query] = [
+        ]  # This was added so probes that couldn't match anything weren't dropped
         for alignment in record.alignments:
             for hsp in alignment.hsps:
                 #Check that hit is on opposite strand
@@ -57,9 +60,11 @@ def parse_hits(handle, strand=-1, match_thresh=13):
                     block_len = [len(block) for block in hsp.match.split(" ")]
                     if any(True for b in block_len if b >= match_thresh):
                         gene_hits[record.query].append(alignment.hit_def)
+    handle.close()
     return gene_hits
 
-def blast_probes(probes, timeout=120, debug=False,):
+
+def blast_probes(probes, timeout=120, debug=False, ):
     """
     Runs entire blast routine for a given gene returning
     only the complementary hits for a probeset.  Stores result in a db.
@@ -67,14 +72,16 @@ def blast_probes(probes, timeout=120, debug=False,):
     :param local: Run local or global blast
     :return:
     """
-    res = local_blast_query(fasta_query,)
+    res = local_blast_query(fasta_query, )
     gene_hits = parse_hits(res)
     res.close()
     return gene_hits
 
+
 def probe_to_fasta(probe):
     return ">{Name},{Probe #}\n{Probe (5'-> 3')}\n".format(**probe)
-                
+
+
 def get_copynum(hits):
     off_target = {name: counts[name] for name in hits if name in counts.keys()}
     false_hits = sum(off_target.values())
@@ -84,6 +91,7 @@ def get_copynum(hits):
 def gc_count(probe):
     return len([1 for c in probe.lower() if c in ['c', 'g']]) / len(probe)
 
+
 def filter_probes(probe_table, off_target_thresh=7, min_probes=24):
     # First get copy #'s of everything
     c_num = []
@@ -91,8 +99,11 @@ def filter_probes(probe_table, off_target_thresh=7, min_probes=24):
     for probe in probe_table:
         target = probe['target']
         target_pos = probe['hits_refseq'].split(',').index(target)
-        encode_refs = [encode_name for n, encode_name in enumerate(probe['hits_encode'].split(','))
-                        if n != target_pos]
+        encode_refs = [
+            encode_name
+            for n, encode_name in enumerate(probe['hits_encode'].split(','))
+            if n != target_pos
+        ]
         probe['hit_num'] = get_copynum(encode_refs)
         probe_lookup[probe['query']] = probe['sequence']
         c_num.append((probe['query'], probe['hit_num']))
@@ -108,16 +119,17 @@ def filter_probes(probe_table, off_target_thresh=7, min_probes=24):
     off_target = Counter([])
 
     # Iterate until at least 24 probes are picked or no more probes are available
-    while len(passed_probes) < min_probes and choice_index != len(remaining_probes):
+    while len(passed_probes) < min_probes and choice_index != len(
+        remaining_probes):
         selected = choices[choice_index]
         # Get off target hits for chosen probe
         off_target_hit = [k for k in hits[selected[0]]
-                            if target != k.split(',')[1]]
+                          if target != k.split(',')[1]]
         test_counter = off_target + Counter(off_target_hit)
 
         # Check if adding this probe makes anything go over off target threshold
         over_thresh = [True for k in test_counter.values()
-                        if k >= off_target_thresh]
+                       if k >= off_target_thresh]
         if not any(over_thresh):
             passed_probes.append(selected)
             off_target = test_counter
@@ -137,7 +149,7 @@ def filter_probes(probe_table, off_target_thresh=7, min_probes=24):
             gc_min = gc_target - gc_range * multiplier
             gc_max = gc_target + gc_range * multiplier
             chosen_gc = [probe for probe, gc in probe_gc
-                            if gc_max >= gc >= gc_min]
+                         if gc_max >= gc >= gc_min]
             multiplier += 1
 
         # If too many probes still exists choose a random subset

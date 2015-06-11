@@ -166,7 +166,7 @@ for pn, (gene, probes) in enumerate(f_probes.iteritems()):
         f_probes = probe_filterer_intron.run(probes, gene, n_probes=48, max_off_target=max_off)
         if len(f_probes) >=48: break
         iters += 1
-    f_probes = [{'target':gene, 'seq':adapter_seq[pn] + probe} for probe in f_probes]
+    f_probes = [{'target':gene, 'seq': probe} for probe in f_probes]
     intron_probes2.append(f_probes)
     print(pn, len(f_probes),) 
 p_bar.finish()

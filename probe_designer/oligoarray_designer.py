@@ -150,7 +150,8 @@ class OligoarrayDesigner(object):
         min_spacing = max_length + min_dist
         prohibited_seqs = ";".join(prohibited_seqs)
         if num_processors == -1:
-            num_processors = cpu_count() * 2
+            from math import ceil
+            num_processors = int(ceil(cpu_count() * 2.5))
         passed = False
         start_time = arrow.utcnow()
         # Time after which to error out
@@ -196,7 +197,7 @@ class OligoarrayDesigner(object):
                         if arrow.utcnow() > create_time.replace(minutes=3,
                                                                 seconds=00):
                             proc.kill()
-                            # print("Killing {}".format(proc))
+                            print("Killing {}".format(proc))
                 except:
                     pass  # Sometimes pid gets killed before this can happen
             # Check that no blasts are running
