@@ -7,6 +7,7 @@ import sys
 from collections import Counter
 from math import ceil
 from itertools import groupby
+from intron_locator import IntronGetter, IntronIterator
 
 import dataset
 from Bio import SeqIO
@@ -28,7 +29,7 @@ def gc_count(probe):
 
 class IntronRetriever(object):
     def get_single_intron(self, gene, chunk_size=1000):
-        row = self.table.find_one(name2=gene)
+        row = self.intron_getter(gene)
         chrom_code = row['chrom']
         chrom_path = self.chromo_folder.joinpath(
             "{}.fa.masked".format(chrom_code))
@@ -37,13 +38,10 @@ class IntronRetriever(object):
 
     def get_intron(self, row, chrom_seq, chunk_size=1000):
         name2 = row['name2']
-        coords_str = row['coords'].strip("[]")
-        # Intron doesn't have assigned coords
-        if not coords_str:
+        if not row['introns']:
             yield None
             return
-        for coord_pair in coords_str.split(", ("):
-            start, end = map(int, coord_pair.strip("()").split(", "))
+        for start, end in row['introns']:
             seq = chrom_seq[start:end + 1]
             if row['strand'] == "+":  #TODO: CHECK THAT THIS IS CORRECT
                 seq = seq.reverse_complement()
@@ -58,25 +56,24 @@ class IntronRetriever(object):
                         yield record[start:start + chunk_size]
 
     def __iter__(self):
-        for chromosome in self.table.distinct('chrom'):
+        for chromosome in self.intron_getter.table.distinct('chrom'):
             chrom_code = chromosome['chrom']
             chrom_path = self.chromo_folder.joinpath(
                 "{}.fa.masked".format(chrom_code))
             chrom_seq = SeqIO.read(str(chrom_path), 'fasta')
-            for row in self.table.find(chrom=chrom_code):
+            for row in IntronIterator(chrom_code):
+                # for record in self.get_intron(row, chrom_seq):
+                #     yield record
                 gene_records = self.get_intron(row, chrom_seq)
                 records = list(gene_records)
                 if any(records):
                     yield records
-                # for intron_chunk in gene_records:
-                #     yield intron_chunk
 
     def __init__(self, organism='mouse'):
         self.organism = organism
-        self.db = dataset.connect("sqlite:///db/intron1_coords.db")
-        self.table = self.db[self.organism]
         self.chromo_folder = Path("db/chromFaMasked/")
-        self.tot_introns = len(list(self.table.distinct("name2")))
+        self.intron_getter = IntronGetter()
+        self.tot_introns = self.intron_getter.tot_records
 
 
 def n_probes(chunk_list, probe_size=35):
@@ -143,92 +140,13 @@ class Designer(object):
         pass
 
     def __init__(self, organism='mouse'):
-        intron_db = dataset.connect("sqlite:///db/intron_probes2.db")
+        intron_db = dataset.connect("sqlite:///db/intron_probes3.db")
         self.probe_db = intron_db[organism]
         self.o = OligoarrayDesigner(
             blast_db='/home/eric/blastdb/old_format/transcribed_mouse2')
         self.probe_size = probe_size
 
 
-def design_introns():
-    # First get used probes
-    intron_db = dataset.connect("sqlite:///db/intron_probes2.db")
-    probe_db = intron_db['mouse']
-    used_probes = set([row['Name'] for row in probe_db.distinct("Name")])
-    o = OligoarrayDesigner(
-        blast_db='/home/eric/blastdb/old_format/transcribed_mouse2')
-    chunksize = 12
-    probe_size = 35
-    chunks = []
-    intron_retriever = IntronRetriever()
-    p_bar = ProgressBar(maxval=intron_retriever.tot_introns).start()
-    for n, gene in enumerate(intron_retriever):
-        if gene[0].id in used_probes:
-            continue
-        name = gene[0].id.lower()
-        chunks.append(gene)
-        if len(chunks) == chunksize:
-            with NamedTemporaryFile("w") as fasta_input:
-                # Break records into 1000nt chunks
-                for gene_chunks in chunks:
-                    if n_probes(gene_chunks) > 150:
-                        # Reduce potential probeset size to drop design time
-                        while n_probes(gene_chunks, probe_size) > 150:
-                            gene_chunks = random.sample(gene_chunks,
-                                                        len(gene_chunks) - 1)
-                    SeqIO.write(gene_chunks, fasta_input,
-                                'fasta')  # write all sequences to file
-                fasta_input.flush()
-                res = o.run(fasta_input.name,
-                            max_dist=1000,
-                            min_length=probe_size,
-                            max_length=probe_size,
-                            max_tm=100,
-                            cross_hyb_temp=72,
-                            min_tm=74,
-                            secondary_struct_temp=76,
-                            max_oligos=100,
-                            timeout=15)
-            for name, probes in res:
-                probes['Percent GC'] = 100 * probes["Probe (5'-> 3')"].map(
-                    gc_count)
-                probe_db.insert_many(probes.T.to_dict().values())
-            p_bar.update(n)
-            chunks = []
-    p_bar.finish()
-
-# design_introns()
-# chunks = IntronRetriever().get_single_intron("Pgk1")
-# o = OligoarrayDesigner(
-#     blast_db='/home/eric/blastdb/old_format/transcribed_mouse2')
-# probe_size = 35
-# with NamedTemporaryFile("w") as fasta_input:
-#     # Break records into 1000nt chunks
-#     for gene_chunks in chunks:
-#         if n_probes(gene_chunks) > 150:
-#             # Reduce potential probeset size to drop design time
-#             while n_probes(gene_chunks, probe_size) > 150:
-#                 gene_chunks = random.sample(gene_chunks,
-#                                             len(gene_chunks) - 1)
-#         SeqIO.write(gene_chunks, fasta_input,
-#                     'fasta')  # write all sequences to file
-#     fasta_input.flush()
-#     res = o.run(fasta_input.name,
-#                 max_dist=1000,
-#                 min_length=probe_size,
-#                 max_length=probe_size,
-#                 max_tm=100,
-#                 cross_hyb_temp=72,
-#                 min_tm=74,
-#                 secondary_struct_temp=76,
-#                 max_oligos=100,
-#                 timeout=15)
-# for name, probes in res:
-#     probes['Percent GC'] = 100 * probes["Probe (5'-> 3')"].map(
-#         gc_count)
-
-# import mRNA_designer
-# flat_probes = probes.T.to_dict().values()
 
 
 class ProbeFilter(object):
@@ -384,21 +302,64 @@ class ProbeFilter(object):
         else:
             raise Exception('need a valid copy_num database')
 
-# intron_db = dataset.connect("sqlite:///db/intron_probes2.db")
-# intron_db_filtered = dataset.connect("sqlite:///db/intron_probes_filtered.db")
-# probe_db = intron_db['mouse']
-# filtered_probe_table = intron_db_filtered['mouse']
 
-# pf = ProbeFilter()
-# p_num = ProgressBar(maxval=len(list(probe_db.distinct("Name")))).start()
-# used = [p['target'] for p in filtered_probe_table.distinct("target")]
-# for n, gene in enumerate(probe_db.distinct("Name")):
-#     p_num.update(n)
-#     if gene in used: continue
-#     gene = gene['Name']
-#     p_set = [probe["Probe (5'-> 3')"] for probe in probe_db.find(Name=gene)]
-#     if len(p_set) < 20: continue
-#     passed_probes = pf.run(p_set, gene, max_off_target=5000, n_probes=60)
-#     for probe in passed_probes:
-#         filtered_probe_table.insert({'target':gene, 'seq':probe})
-# p_num.finish()
+# intron_db_filtered = dataset.connect("sqlite:///db/intron_probes_filtered.db.bk")
+# filtered_probe_table = intron_db_filtered['mouse']
+# targets = [row['target'] for row in filtered_probe_table.distinct('target')]
+# passed = [t_name for t_name in targets if len(list(filtered_probe_table.find(target=t_name))) >= 24]
+
+
+
+def design_introns():
+    # First get used probes
+    intron_db = dataset.connect("sqlite:///db/intron_probes3.db")
+    probe_db = intron_db['mouse']
+    used_probes = set([row['Name'] for row in probe_db.distinct("Name")])
+    o = OligoarrayDesigner(
+        blast_db='/home/eric/blastdb/old_format/transcribed_mouse2')
+    chunksize = 12
+    probe_size = 35
+    chunks = []
+    # Check if a good probeset was already designed
+    intron_db_filtered = dataset.connect("sqlite:///db/intron_probes_filtered.db.bk")
+    filtered_probe_table = intron_db_filtered['mouse']
+    intron_retriever = IntronRetriever()
+    p_bar = ProgressBar(maxval=intron_retriever.tot_introns).start()
+    for n, gene in enumerate(intron_retriever):
+        gene_chunks = []
+        for chunk in gene:
+            gene_chunks.append(chunk)
+            if n_probes(gene_chunks) > 150: break
+        if chunk.id in used_probes: continue
+        if len(list(filtered_probe_table.find(target=chunk.id))) >= 24: continue
+        # Tagging of introns in db should be added around here
+        chunks.append(gene_chunks)
+        if len(chunks) == chunksize:
+            with NamedTemporaryFile("w") as fasta_input:
+                # Break records into 1000nt chunks
+                for gene_chunks in chunks:
+                    if n_probes(gene_chunks) > 150:
+                        # Reduce potential probeset size to drop design time
+                        while n_probes(gene_chunks, probe_size) > 150:
+                            gene_chunks = random.sample(gene_chunks,
+                                                        len(gene_chunks) - 1)
+                    SeqIO.write(gene_chunks, fasta_input,
+                                'fasta')  # write all sequences to file
+                fasta_input.flush()
+                res = o.run(fasta_input.name,
+                            max_dist=1000,
+                            min_length=probe_size,
+                            max_length=probe_size,
+                            max_tm=100,
+                            cross_hyb_temp=72,
+                            min_tm=74,
+                            secondary_struct_temp=76,
+                            max_oligos=100,
+                            timeout=15)
+            for name, probes in res:
+                probes['Percent GC'] = 100 * probes["Probe (5'-> 3')"].map(
+                    gc_count)
+                probe_db.insert_many(probes.T.to_dict().values())
+            p_bar.update(n)
+            chunks = []
+    p_bar.finish()
