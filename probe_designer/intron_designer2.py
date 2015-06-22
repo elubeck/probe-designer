@@ -240,13 +240,13 @@ class ProbeFilter(object):
         hit_vals = sorted(hit_vals, key=lambda x: x[1], reverse=True)
         return hit_vals
 
-    def run_blast(self, probe_lookup, match_thresh, strand=None):
+    def run_blast(self, probe_lookup, match_thresh, strand=None, db='gencode_tracks_reversed'):
         if not strand:
             strand = self.strand
         fasta_str = "\n".join(">{}\n{}".format(*items)
                               for items in probe_lookup.iteritems())
         res = blaster2.local_blast_query(fasta_str,
-                                         db='gencode_tracks_reversed')
+                                         db=db)
         hits = blaster2.parse_hits(res,
                                    strand=strand,
                                    match_thresh=match_thresh)
@@ -256,11 +256,14 @@ class ProbeFilter(object):
             match_thresh=18,
             n_probes=48,
             max_off_target=10000):
+        """
+        flat_probes is a list of probes.  Sequence only
+        """
         probe_lookup = {
             "{},{}".format(gene_name, n): probe
             for n, probe in enumerate(flat_probes)
         }
-        res = self.run_blast(probe_lookup, match_thresh)
+        res = self.run_blast(probe_lookup, match_thresh, db=self.db)
         hit_vals = self.blast2copynum(res)
         filtered_probes = self.filter_probes(hit_vals, gene_name, res,
                                              probe_lookup,
@@ -326,6 +329,7 @@ def design_introns():
     intron_retriever = IntronRetriever()
     p_bar = ProgressBar(maxval=intron_retriever.tot_introns).start()
     for n, gene in enumerate(intron_retriever):
+        p_bar.update(n)
         gene_chunks = []
         for chunk in gene:
             gene_chunks.append(chunk)
