@@ -147,8 +147,6 @@ class Designer(object):
         self.probe_size = probe_size
 
 
-
-
 class ProbeFilter(object):
     def run_batch(self):
         hit_val2 = sorted(hit_vals, key=lambda x: x[0].split(',')[0])
@@ -240,13 +238,14 @@ class ProbeFilter(object):
         hit_vals = sorted(hit_vals, key=lambda x: x[1], reverse=True)
         return hit_vals
 
-    def run_blast(self, probe_lookup, match_thresh, strand=None, db='gencode_tracks_reversed'):
+    def run_blast(self, probe_lookup, match_thresh,
+                  strand=None,
+                  db='gencode_tracks_reversed'):
         if not strand:
             strand = self.strand
         fasta_str = "\n".join(">{}\n{}".format(*items)
                               for items in probe_lookup.iteritems())
-        res = blaster2.local_blast_query(fasta_str,
-                                         db=db)
+        res = blaster2.local_blast_query(fasta_str, db=db)
         hits = blaster2.parse_hits(res,
                                    strand=strand,
                                    match_thresh=match_thresh)
@@ -305,12 +304,10 @@ class ProbeFilter(object):
         else:
             raise Exception('need a valid copy_num database')
 
-
 # intron_db_filtered = dataset.connect("sqlite:///db/intron_probes_filtered.db.bk")
 # filtered_probe_table = intron_db_filtered['mouse']
 # targets = [row['target'] for row in filtered_probe_table.distinct('target')]
 # passed = [t_name for t_name in targets if len(list(filtered_probe_table.find(target=t_name))) >= 24]
-
 
 
 def design_introns():
@@ -324,7 +321,8 @@ def design_introns():
     probe_size = 35
     chunks = []
     # Check if a good probeset was already designed
-    intron_db_filtered = dataset.connect("sqlite:///db/intron_probes_filtered.db.bk")
+    intron_db_filtered = dataset.connect(
+        "sqlite:///db/intron_probes_filtered.db.bk")
     filtered_probe_table = intron_db_filtered['mouse']
     intron_retriever = IntronRetriever()
     p_bar = ProgressBar(maxval=intron_retriever.tot_introns).start()
@@ -335,7 +333,8 @@ def design_introns():
             gene_chunks.append(chunk)
             if n_probes(gene_chunks) > 150: break
         if chunk.id in used_probes: continue
-        if len(list(filtered_probe_table.find(target=chunk.id))) >= 24: continue
+        if len(list(filtered_probe_table.find(target=chunk.id))) >= 24:
+            continue
         # Tagging of introns in db should be added around here
         chunks.append(gene_chunks)
         if len(chunks) == chunksize:

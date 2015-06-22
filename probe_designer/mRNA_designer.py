@@ -126,7 +126,8 @@ class ProbeDesigner(object):
                              max_oligos=n_target_probes,
                              timeout=15)
         for name, probes in res:
-            probes['Percent GC'] = 100 * probes["Probe (5'-> 3')"].map(gc_count)
+            probes['Percent GC'
+                   ] = 100 * probes["Probe (5'-> 3')"].map(gc_count)
             yield probes
 
     def design(self, target):
