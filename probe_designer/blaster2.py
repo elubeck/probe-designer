@@ -21,7 +21,7 @@ with open('db/encode_counts.csv', 'r') as f:
     counts = {line[0]: float(line[1]) for line in csv.reader(f)}
 
 
-def local_blast_query(query, db='gencode_tracks.fas'):
+def local_blast_query(query, db='gencode_tracks_reversed'):
     """
     Blast fasta query via NCBI blastn.
     :param query: Fasta string
@@ -41,7 +41,7 @@ def local_blast_query(query, db='gencode_tracks.fas'):
     return output_handle
 
 
-def parse_hits(handle, strand=-1, match_thresh=13):
+def parse_hits(handle, strand=1, match_thresh=13):
     """
     Parses the results from a blast search.  Returns all blast hits on a given strand
     :param handle: results xml handle from blast search
