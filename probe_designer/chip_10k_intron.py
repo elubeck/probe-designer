@@ -153,6 +153,7 @@ c_num = {
 c_sort = sorted(c_num.items(), key=lambda x: x[1], reverse=True)
 
 ###### Make Probes #########
+# Start running form here to shorten evaluation time on already run file
 seq_template = "{f_primer} {f_cutting} TAG {bridge} TATA {probe} GAT {r_cutting} {r_primer}"
 f_cutting = 'AGTACT'  # ScaI
 r_cutting = 'GAATTC'  # EcoRI
@@ -195,7 +196,7 @@ high_expression = [k for k in remaining_c_sort[:1000]]
 from random import shuffle
 remaining_choices = list(set(remaining_c_sort).difference(high_expression))
 shuffle(remaining_choices)
-set_size = len(remaining_choices) / 3
+set_size = int(len(remaining_choices) / 3)
 probe_blocks = [[
     g for g in remaining_choices[i * set_size:(i + 1) * set_size]
 ] for i in range(3)]
@@ -292,7 +293,8 @@ for n, barcode_round in enumerate(hyb_barcodes):
 # Write barcodes to file
 with open("temp/barcodes_6-24-15.csv", "w") as f_out:
     cv = csv.writer(f_out)
-    cv.writerow(['name', 'bridge', 'Hyb1', 'Hyb2', 'Hyb3', 'Hyb4', 'Hyb5', 'Hyb6', 'Hyb7', 'Hyb8'])
+    cv.writerow(['name', 'bridge', 'Hyb1', 'Hyb2', 'Hyb3', 'Hyb4', 'Hyb5',
+                 'Hyb6', 'Hyb7', 'Hyb8'])
     for (bridge, name), barcode in zip(set(used_bridges), barcodes):
         cv.writerow([name, bridge] + list(barcode))
 
@@ -351,7 +353,7 @@ for cn, color_block in enumerate(split_pgk1):
         }, 'Split PGK1-Color{}-#{}'.format(cn, n)))
 
 
-def append_pgk1(chip, pgk1_template):
+def append_pgk1(chip, pgk1_template, ):
     """
     Adds PGK1 oligos to chip.  One set for every primer pair.
     """
@@ -370,11 +372,21 @@ def append_pgk1(chip, pgk1_template):
             chip.append((seq_template.format(**template), name))
     return chip
 
+# Control Oligo
+control_seq = seq_template.format(**{
+    'f_primer': 'GACGCACATATGCGGGCAAG',
+    'f_cutting': f_cutting,
+    'r_cutting': r_cutting,
+    'bridge': 'ATGCATGCATGCATGCATGC',
+    'probe': 'GCTTGCAAGCTTGCAAGCTTGCAAGCTTGCAAGCA',
+    'r_primer': reverse_complement('TCCGCAGTCACGAAGATGCC')
+})
+
 # Chip 1
 chip_1 = []
 from random import sample
 for gene, probes in existing_probes.iteritems():
-    if len(probes) >= 47: # 48 probes filled the chip
+    if len(probes) >= 47:  # 48 probes filled the chip
         samp_size = 47
     else:
         samp_size = len(probes)
@@ -388,7 +400,17 @@ for gene, probes in high_exp.iteritems():
 chip_1 += all_bridges[0]
 chip_1 += all_bridges[1]
 
-chip_1 = append_pgk1(chip_1, split_pgk1_template)
+pgk1_sub_set = ['Split PGK1-Color0-#1', 'Split PGK1-Color0-#7',
+                'Split PGK1-Color0-#12', 'Split PGK1-Color0-#18',
+                'Split PGK1-Color0-#23', 'Split PGK1-Color1-#2',
+                'Split PGK1-Color1-#6', 'Split PGK1-Color1-#11',
+                'Split PGK1-Color1-#15', 'Split PGK1-Color1-#17']
+
+pgk1_short = [(d, name) for d, name in split_pgk1_template
+              if name in pgk1_sub_set]
+
+chip_1 = append_pgk1(chip_1, pgk1_short)
+chip_1 += [(control_seq, 'Control-Exclude')]
 
 # Chip 2
 chip_2 = []
@@ -399,8 +421,40 @@ chip_2 += all_bridges[2]
 chip_2 += all_bridges[3]
 
 chip_2 = append_pgk1(chip_2, split_pgk1_template)
+chip_2 += [(control_seq, 'Control-Exclude')]
 
-# Chip 3
+# Add failed bridges from last chip
+old_bridges_4 = []
+with open('temp/bridge_set4.csv', 'r') as f_in:
+    for n, bridge in enumerate(csv.reader(f_in)):
+        seq = "{} {} {}".format(ahmet_primers[0], bridge[0][20:-20],
+                                ahmet_primers[1])
+        old_bridges_4.append((seq, "OldBridge4-{}".format(n)))
+chip_2 += old_bridges_4
+remaining_space = 92918 - len(chip_2)
+
+# Get Ahmet's Probes
+import random
+ahmet_primers = ['TGCAGCTCCGCGAAATGAAG',
+                 reverse_complement('AATGGCACAGACAGGCAGCG')]
+ahmet_probes = []
+ahmet_template = "{f_primer} {f_cutting} TAG {seq} GAT {r_cutting} {r_primer}"
+f_cutting = 'AGTACT'  # ScaI
+r_cutting = 'GAATTC'  # EcoRI
+
+with open('temp/ahmet_riboprobes.csv', 'r') as f_in:
+    for line in csv.reader(f_in):
+        seq = line[1]
+        full_seq = ahmet_template.format(**{
+            'f_primer': ahmet_primers[0],
+            'f_cutting': f_cutting,
+            'r_primer': ahmet_primers[1],
+            'r_cutting': r_cutting,
+            'seq': seq
+        })
+        ahmet_probes.append((full_seq, line[0] + '-Ahmet'))
+
+    # Chip 3
 chip_3 = []
 for gene, probes in meta_p_block[1].iteritems():
     for n, probe in enumerate(probes):
@@ -409,6 +463,10 @@ chip_3 += all_bridges[4]
 chip_3 += all_bridges[5]
 
 chip_3 = append_pgk1(chip_3, split_pgk1_template)
+chip_3 += [(control_seq, 'Control-Exclude')]
+
+remaining_space = 92918 - len(chip_3)
+chip_3 += random.sample(ahmet_probes, remaining_space)
 
 # Chip 4
 chip_4 = []
@@ -420,16 +478,26 @@ chip_4 += all_bridges[7]
 
 chip_4 = append_pgk1(chip_4, split_pgk1_template)
 
+chip_4 += [(control_seq, 'Control-Exclude')]
+remaining_space = 92918 - len(chip_4)
+chip_4 += random.sample(ahmet_probes, remaining_space)
+
 # Make an archive storing all files
 import zipfile
 from tempfile import NamedTemporaryFile
-with zipfile.ZipFile('temp/chip_10k_intron.zip', 'w', compression=zipfile.ZIP_DEFLATED) as archive:
-    for name, chip in {'chip_1': chip_1, 'chip_2': chip_2, 'chip_3': chip_3, 'chip_4':chip_4}.iteritems():
+with zipfile.ZipFile('temp/chip_10k_intron.zip', 'w',
+                     compression=zipfile.ZIP_DEFLATED) as archive:
+    for name, chip in {
+        'chip_1': chip_1,
+        'chip_2': chip_2,
+        'chip_3': chip_3,
+        'chip_4': chip_4
+    }.iteritems():
         with NamedTemporaryFile() as f_temp:
             cv = csv.writer(f_temp)
             cv.writerows(chip)
             f_temp.flush()
-            archive.write(f_temp.name, arcname=name+'.csv')
+            archive.write(f_temp.name, arcname=name + '.csv')
     archive.write("temp/barcodes_6-24-15.csv", arcname='barcodes.csv')
     with NamedTemporaryFile() as f_temp:
         cv = csv.writer(f_temp)
@@ -437,10 +505,34 @@ with zipfile.ZipFile('temp/chip_10k_intron.zip', 'w', compression=zipfile.ZIP_DE
         cv.writerows(set(used_bridges))
         f_temp.flush()
         archive.write(f_temp.name, arcname='bridges.csv')
-            
+
+# Make an archive storing all files for ordering
+import zipfile
+from tempfile import NamedTemporaryFile
+with zipfile.ZipFile('temp/chip_10k_intron_ordering.zip', 'w',
+                     compression=zipfile.ZIP_DEFLATED) as archive:
+    for name, chip in {
+        'chip_1': chip_1,
+        'chip_2': chip_2,
+        'chip_3': chip_3,
+        'chip_4': chip_4
+    }.iteritems():
+        with NamedTemporaryFile() as f_temp:
+            cv = csv.writer(f_temp)
+            t_chip = [(''.join(seq.split(' ')), name) for seq, name in chip]
+            cv.writerows(t_chip)
+            f_temp.flush()
+            archive.write(f_temp.name, arcname=name + '.csv')
+    archive.write("temp/barcodes_6-24-15.csv", arcname='barcodes.csv')
+    with NamedTemporaryFile() as f_temp:
+        cv = csv.writer(f_temp)
+        cv.writerow(['bridge', 'name'])
+        cv.writerows(set(used_bridges))
+        f_temp.flush()
+        archive.write(f_temp.name, arcname='bridges.csv')
 
 ######### BLAT ALL PROBES ###############
-import align_probes 
+import align_probes
 intron_db_filtered = dataset.connect(
     "sqlite:///db/intron_probes_filtered_10k.db")
 filtered_probe_table = intron_db_filtered['mouse']
@@ -455,8 +547,29 @@ for n, target_d in enumerate(filtered_probe_table.distinct('target')):
     chr = align_probes.find_chromosome(gene)
     chr_positions = align_probes.blat_probes(passed, chr)
     for pos in chr_positions:
-        pos.update({'target':gene})
+        pos.update({'target': gene})
     mouse_alignments.insert_many(chr_positions)
     p_bar.update(n)
 p_bar.finish()
-        
+
+with open('temp/intron_10k.bed', 'w') as f_out:
+    bed = csv.writer(f_out, delimiter='\t')
+    bed.writerow(['chrom', 'chromStart', 'chromEnd', 'strand', 'name'])
+    for row in mouse_alignments:
+        bed.writerow([row['tName'], row['tStart'], row['tEnd'], row['strand'],
+                      row['target'] + '-' + row['qName']])
+
+###### PRIMER LIST #######
+
+primers = [
+    ['AAGCGCCACGAGTTGTCACG', 'GCATCACTTTGGGCTCGGCT'],
+    ['GCCCCATCATGTGCCTTTCC', 'GCCTGCGAGAGGGAAATCCA'],
+    ['TGTGCGCTCCGATTGTCCTC', 'GGCCAACAGACCCCATTTGC'],
+    ['ATTGAGGGTCTTCGCGTGCC', 'GGTTGCAAAGCGCCGGTTAC'],
+    ['TGCAGCTCCGCGAAATGAAG', 'AATGGCACAGACAGGCAGCG']
+    ['GACGCACATATGCGGGCAAG', 'TCCGCAGTCACGAAGATGCC']
+]  # yapf: disable
+
+
+ahmet_primers = ['TGCAGCTCCGCGAAATGAAG', 'AATGGCACAGACAGGCAGCG']
+control_primer = ['GACGCACATATGCGGGCAAG', 'TCCGCAGTCACGAAGATGCC']
