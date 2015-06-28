@@ -29,7 +29,7 @@ def gc_count(probe):
 
 class IntronRetriever(object):
     def get_single_intron(self, gene, chunk_size=1000):
-        row = self.intron_getter(gene)
+        row = self.intron_getter.run_gene(gene)
         chrom_code = row['chrom']
         chrom_path = self.chromo_folder.joinpath(
             "{}.fa.masked".format(chrom_code))
@@ -72,7 +72,7 @@ class IntronRetriever(object):
     def __init__(self, organism='mouse'):
         self.organism = organism
         self.chromo_folder = Path("db/chromFaMasked/")
-        self.intron_getter = IntronGetter()
+        self.intron_getter = IntronGetter(in_all=True)
         self.tot_introns = self.intron_getter.tot_records
 
 
@@ -312,7 +312,7 @@ class ProbeFilter(object):
 
 def design_introns():
     # First get used probes
-    intron_db = dataset.connect("sqlite:///db/intron_probes3.db")
+    intron_db = dataset.connect("sqlite:///db/intron_probes_10k_2.db")
     probe_db = intron_db['mouse']
     used_probes = set([row['Name'] for row in probe_db.distinct("Name")])
     o = OligoarrayDesigner(
@@ -321,9 +321,9 @@ def design_introns():
     probe_size = 35
     chunks = []
     # Check if a good probeset was already designed
-    intron_db_filtered = dataset.connect(
-        "sqlite:///db/intron_probes_filtered.db.bk")
-    filtered_probe_table = intron_db_filtered['mouse']
+    # intron_db_filtered = dataset.connect(
+    #     "sqlite:///db/intron_probes_filtered.db.bk")
+    # filtered_probe_table = intron_db_filtered['mouse']
     intron_retriever = IntronRetriever()
     p_bar = ProgressBar(maxval=intron_retriever.tot_introns).start()
     for n, gene in enumerate(intron_retriever):
@@ -332,18 +332,18 @@ def design_introns():
         for chunk in gene:
             gene_chunks.append(chunk)
             if n_probes(gene_chunks) > 150: break
-        if chunk.id in used_probes: continue
-        if len(list(filtered_probe_table.find(target=chunk.id))) >= 24:
-            continue
+        # if chunk.id in used_probes: continue
+        # if len(list(filtered_probe_table.find(target=chunk.id))) >= 24:
+        #     continue
         # Tagging of introns in db should be added around here
         chunks.append(gene_chunks)
         if len(chunks) == chunksize:
             with NamedTemporaryFile("w") as fasta_input:
                 # Break records into 1000nt chunks
                 for gene_chunks in chunks:
-                    if n_probes(gene_chunks) > 150:
+                    if n_probes(gene_chunks) > 200:
                         # Reduce potential probeset size to drop design time
-                        while n_probes(gene_chunks, probe_size) > 150:
+                        while n_probes(gene_chunks, probe_size) > 200:
                             gene_chunks = random.sample(gene_chunks,
                                                         len(gene_chunks) - 1)
                     SeqIO.write(gene_chunks, fasta_input,

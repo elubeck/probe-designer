@@ -57,15 +57,20 @@ class IntronGetter(object):
             e_start = map(int, gene['exonEnds'].strip(',').split(","))[::-1]
         return (start, end, e_start, e_end)
 
-    def get_intron(self, gene_isoforms):
+    def get_intron(self, gene_isoforms, in_all=False):
         """
         Get all introns from a gene and return in transcribed order.
         Removes regions that overlap exons
+        If in_all=True makes sure selected introns are in all isoforms.
         """
         intron_set = []
+        tx_starts = []
+        tx_ends = []
         for gene in gene_isoforms:
             gene_introns = []
             tx_start, tx_end, e_start, e_end = self.get_positions(gene)
+            tx_starts.append(tx_start)
+            tx_ends.append(tx_end)
             # if gap between start and 1st exon
             gene_introns.append(sorted([tx_start, e_start[0] - 1]))
             # Iterate all middle introns
@@ -78,9 +83,21 @@ class IntronGetter(object):
                   'end': end,
                   'length': end - start} for start, end in gene_introns
                  if end - start != 0])
-
+        if in_all:
+            if gene['strand'] == "+":
+                intron_set = [[intron for intron in isoform
+                               if intron['start'] >= max(tx_starts)
+                               if intron['end'] <= min(tx_ends)]
+                              for isoform in intron_set]
+            if gene['strand'] == '-':
+                intron_set = [[intron for intron in isoform
+                               if intron['start'] <= min(tx_starts)
+                               if intron['end'] >= max(tx_ends)
+                           if intron['end'] <= min(tx_starts)]
+                              for isoform in intron_set]
         # Make set of points that are only intron1, not any other exons
-        exon_pos = self.exons[gene['chrom']]  # Get all the exons for chromosome
+        exon_pos = self.exons[gene['chrom']
+                              ]  # Get all the exons for chromosome
         intron_regions = []
         for isoform in intron_set:
             for intron in isoform:
@@ -104,16 +121,17 @@ class IntronGetter(object):
             'chrom': hits[0]['chrom'],
             'strand': hits[0]['strand'],
             'name2': gene,
-            'introns': self.get_intron(hits)
+            'introns': self.get_intron(hits, in_all = self.in_all)
         }
 
-    def __init__(self, table=None):
+    def __init__(self, table=None, in_all=False):
         if table is None:
             db = dataset.connect("sqlite:///db/refGene.db")
             self.table = db['mouse']
         else:
             self.table = table
         self.tot_records = len(list(self.table.distinct('name2')))
+        self.in_all = in_all
         with open('db/exon_pos.json', 'r') as f_in:
             self.exons = json.load(f_in)
 
