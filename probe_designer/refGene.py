@@ -115,34 +115,34 @@ def get_exon_pos(table):
 #             # TODO: Spit out to FASTA FILE.  Design
 
 # Make a CSV file containing the full coordinates to every gene in the genome
-with open("gene_pos.csv", 'w') as f:
-    field_names = ['strand', 'start', 'end', 'chrom']
-    csv_f = csv.DictWriter(f, fieldnames=field_names)
-    csv_f.writeheader()
-    for gene in mouse.distinct('name2'):
-        start = []
-        end = []
-        gene_name = gene['name2']
-        for record in mouse.find(name2=gene_name):
-            start.append(int(record['txStart']))
-            end.append(int(record['txEnd']))
-        r = {
-            'strand': record['strand'],
-            'start': min(start),
-            'end': max(end),
-            'chrom': record['chrom']
-        }
-        csv_f.writerow(r)
+# with open("gene_pos.csv", 'w') as f:
+#     field_names = ['strand', 'start', 'end', 'chrom']
+#     csv_f = csv.DictWriter(f, fieldnames=field_names)
+#     csv_f.writeheader()
+#     for gene in mouse.distinct('name2'):
+#         start = []
+#         end = []
+#         gene_name = gene['name2']
+#         for record in mouse.find(name2=gene_name):
+#             start.append(int(record['txStart']))
+#             end.append(int(record['txEnd']))
+#         r = {
+#             'strand': record['strand'],
+#             'start': min(start),
+#             'end': max(end),
+#             'chrom': record['chrom']
+#         }
+#         csv_f.writerow(r)
 
-# ranges3 = {}
-# for n, gene in enumerate(genes):
-#     if n % 5000 == 0:
-#         print(n)
-#     name = gene['name2']
-#     hits = mouse.find(name2=name)
-#     if name in ranges3:
-#         raise Exception("This shouldn't happen")
-#     ranges3[name] = get_intron(hits, exons)
+ranges3 = {}
+for n, gene in enumerate(genes):
+    if n % 5000 == 0:
+        print(n)
+    name = gene['name2']
+    hits = mouse.find(name2=name)
+    if name in ranges3:
+        raise Exception("This shouldn't happen")
+    ranges3[name] = get_intron(hits, exons)
 
 # cols = ['name2', 'coords', 'strand', 'chrom']
 # flat = [dict(zip(cols, [name] + list(map(str, line))))

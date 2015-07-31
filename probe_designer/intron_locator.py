@@ -144,6 +144,21 @@ class IntronIterator(IntronGetter):
                 name2 = row['name2']
                 yield self.run_gene(name2)
 
-    def __init__(self, chrom):
+    def __init__(self, ):
+        super(self.__class__, self).__init__()
+
+
+class ChromIntronIterator(IntronGetter):
+    def __iter__(self):
+        for row in self.table.distinct('name2', chrom=self.chrom):
+            name2 = row['name2']
+            if name2 in self.skip_introns: continue
+            yield self.run_gene(name2)
+
+    def __init__(self, chrom, skip_introns=None):
         super(self.__class__, self).__init__()
         self.chrom = chrom
+        if skip_introns is None:
+            self.skip_introns = []
+        else:
+            self.skip_introns = skip_introns

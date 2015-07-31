@@ -16,6 +16,7 @@ import blaster2
 import csv
 import json
 from get_seq import reverse_complement
+from collections import Counter
 
 filterer = intron_designer2.ProbeFilter()
 ###### Blast Adapters ###########
@@ -163,9 +164,9 @@ primers = [
     ['GCCCCATCATGTGCCTTTCC', 'GCCTGCGAGAGGGAAATCCA'],
     ['TGTGCGCTCCGATTGTCCTC', 'GGCCAACAGACCCCATTTGC'],
     ['ATTGAGGGTCTTCGCGTGCC', 'GGTTGCAAAGCGCCGGTTAC'],
+    ['AATTGAGCAGCTCGGGCCAC', 'AGTTGCAGGCTTCCATCGCC'],
 ]  # yapf: disable
 
-primer_count = 0
 used_bridges = []
 
 # Already picked probes from last probe set
@@ -178,12 +179,11 @@ with open('temp/5-27-15_intron_probes2.csv', 'r') as f_in:
         existing_probes[gene].append({
             'probe': probe_seq,
             'bridge': bridge,
-            'f_primer': primers[primer_count][0],
-            'r_primer': reverse_complement(primers[primer_count][1]),
+            'f_primer': primers[0][0],
+            'r_primer': reverse_complement(primers[0][1]),
             'f_cutting': f_cutting,
             'r_cutting': r_cutting,
         })
-primer_count += 1
 
 # Remove Already picked probes from remaining choices
 remaining_choices = set(passed).difference(existing_probes.keys())
@@ -352,6 +352,15 @@ for cn, color_block in enumerate(split_pgk1):
             'r_cutting': r_cutting,
         }, 'Split PGK1-Color{}-#{}'.format(cn, n)))
 
+pgk1_sub_set = ['Split PGK1-Color0-#1', 'Split PGK1-Color0-#7',
+                'Split PGK1-Color0-#12', 'Split PGK1-Color0-#18',
+                'Split PGK1-Color0-#23', 'Split PGK1-Color1-#2',
+                'Split PGK1-Color1-#6', 'Split PGK1-Color1-#11',
+                'Split PGK1-Color1-#15', 'Split PGK1-Color1-#17']
+
+pgk1_short = [(d, name) for d, name in split_pgk1_template
+              if name in pgk1_sub_set]
+
 
 def append_pgk1(chip, pgk1_template, ):
     """
@@ -383,6 +392,7 @@ control_seq = seq_template.format(**{
 })
 
 # Chip 1
+chip_primers = []
 chip_1 = []
 from random import sample
 for gene, probes in existing_probes.iteritems():
@@ -393,45 +403,48 @@ for gene, probes in existing_probes.iteritems():
     for n, probe in enumerate(sample(probes, samp_size)):
         chip_1.append((seq_template.format(**probe), "{}-{}".format(gene, n)))
 
+chip_primers.append(
+    (chip_1[-1][0].split(' ')[0], chip_1[-1][0].split(' ')[-1]))
+
 for gene, probes in high_exp.iteritems():
     for n, probe in enumerate(probes):
         chip_1.append((seq_template.format(**probe), "{}-{}".format(gene, n)))
 
+chip_primers.append(
+    (chip_1[-1][0].split(' ')[0], chip_1[-1][0].split(' ')[-1]))
+
 chip_1 += all_bridges[0]
+
+chip_primers.append(
+    (chip_1[-1][0].split(' ')[0], chip_1[-1][0].split(' ')[-1]))
+
 chip_1 += all_bridges[1]
 
-pgk1_sub_set = ['Split PGK1-Color0-#1', 'Split PGK1-Color0-#7',
-                'Split PGK1-Color0-#12', 'Split PGK1-Color0-#18',
-                'Split PGK1-Color0-#23', 'Split PGK1-Color1-#2',
-                'Split PGK1-Color1-#6', 'Split PGK1-Color1-#11',
-                'Split PGK1-Color1-#15', 'Split PGK1-Color1-#17']
-
-pgk1_short = [(d, name) for d, name in split_pgk1_template
-              if name in pgk1_sub_set]
+chip_primers.append(
+    (chip_1[-1][0].split(' ')[0], chip_1[-1][0].split(' ')[-1]))
 
 chip_1 = append_pgk1(chip_1, pgk1_short)
 chip_1 += [(control_seq, 'Control-Exclude')]
 
+chip_primers.append(
+    (chip_1[-1][0].split(' ')[0], chip_1[-1][0].split(' ')[-1]))
+assert (len(chip_1) <= 92918)
+assert (all(v == 1 for k, v in Counter(chip_primers).iteritems()))
+
 # Chip 2
+chip_primers = []
 chip_2 = []
 for gene, probes in meta_p_block[0].iteritems():
     for n, probe in enumerate(probes):
         chip_2.append((seq_template.format(**probe), "{}-{}".format(gene, n)))
+chip_primers.append(
+    (chip_2[-1][0].split(' ')[0], chip_2[-1][0].split(' ')[-1]))
 chip_2 += all_bridges[2]
+chip_primers.append(
+    (chip_2[-1][0].split(' ')[0], chip_2[-1][0].split(' ')[-1]))
 chip_2 += all_bridges[3]
-
-chip_2 = append_pgk1(chip_2, split_pgk1_template)
-chip_2 += [(control_seq, 'Control-Exclude')]
-
-# Add failed bridges from last chip
-old_bridges_4 = []
-with open('temp/bridge_set4.csv', 'r') as f_in:
-    for n, bridge in enumerate(csv.reader(f_in)):
-        seq = "{} {} {}".format(ahmet_primers[0], bridge[0][20:-20],
-                                ahmet_primers[1])
-        old_bridges_4.append((seq, "OldBridge4-{}".format(n)))
-chip_2 += old_bridges_4
-remaining_space = 92918 - len(chip_2)
+chip_primers.append(
+    (chip_2[-1][0].split(' ')[0], chip_2[-1][0].split(' ')[-1]))
 
 # Get Ahmet's Probes
 import random
@@ -454,82 +467,162 @@ with open('temp/ahmet_riboprobes.csv', 'r') as f_in:
         })
         ahmet_probes.append((full_seq, line[0] + '-Ahmet'))
 
-    # Chip 3
+remaining_space = 92918 - len(chip_2) - 48 * 4 - 1
+chip_2 += sample(ahmet_probes, remaining_space)
+chip_primers.append(
+    (chip_2[-1][0].split(' ')[0], chip_2[-1][0].split(' ')[-1]))
+
+chip_2 = append_pgk1(chip_2, split_pgk1_template)
+chip_2 += [(control_seq, 'Control-Exclude')]
+chip_primers.append(
+    (chip_2[-1][0].split(' ')[0], chip_2[-1][0].split(' ')[-1]))
+
+assert (len(chip_2) <= 92918)
+assert (all(v == 1 for k, v in Counter(chip_primers).iteritems()))
+
+# Chip 3
+chip_primers = []
+# Get 100 bridges for Zak's Genes
+zak_bridges = []
+for bridge_file in ('temp/1k Bridges #10.csv', 'temp/1k Bridges #11.csv', ):
+    with open(bridge_file, 'r') as f_in:
+        for n, line in enumerate(csv.reader(f_in)):
+            if n == 0:
+                continue
+            zak_bridges.append(reverse_complement(line[2][5:]))
+
+iter_zak_bridge = iter(zak_bridges[:100])
+
+zak_oligos = []
+with open("temp/zak_priority_genes.csv", "r") as f_in:
+    for line in csv.reader(f_in):
+        zak_oligos.append(line[1:])
+
+# Get Zak's Probes
+final_zak_oligos = []
+used_zak_bridges = []
+for gene, oligos in groupby(zak_oligos, lambda x: x[0]):
+    adapter = iter_zak_bridge.next()
+    used_zak_bridges.append((reverse_complement(adapter), gene))
+    for n, (g_name, oligo) in enumerate(oligos):
+        params = {
+            'probe': oligo,
+            'bridge': adapter,
+            'f_primer': primers[4][0],
+            'r_primer': reverse_complement(primers[4][1]),
+            'f_cutting': f_cutting,
+            'r_cutting': r_cutting,
+        }
+        final_zak_oligos.append(
+            (seq_template.format(**params), "{}-{}-ZAK".format(g_name, n)))
+
 chip_3 = []
 for gene, probes in meta_p_block[1].iteritems():
     for n, probe in enumerate(probes):
         chip_3.append((seq_template.format(**probe), "{}-{}".format(gene, n)))
+chip_primers.append(
+    (chip_3[-1][0].split(' ')[0], chip_3[-1][0].split(' ')[-1]))
 chip_3 += all_bridges[4]
+chip_primers.append(
+    (chip_3[-1][0].split(' ')[0], chip_3[-1][0].split(' ')[-1]))
 chip_3 += all_bridges[5]
+chip_primers.append(
+    (chip_3[-1][0].split(' ')[0], chip_3[-1][0].split(' ')[-1]))
+
+# Add Zak Oligos
+remaining_space = 92918 - len(chip_3) - 48 * 4 - 1
+chip_3 += final_zak_oligos[:remaining_space]
+chip_primers.append(
+    (chip_3[-1][0].split(' ')[0], chip_3[-1][0].split(' ')[-1]))
+
+remaining_zak = final_zak_oligos[remaining_space:
+                                 ]  # Remaining oligos to add to chip 4
 
 chip_3 = append_pgk1(chip_3, split_pgk1_template)
 chip_3 += [(control_seq, 'Control-Exclude')]
+chip_primers.append(
+    (chip_3[-1][0].split(' ')[0], chip_3[-1][0].split(' ')[-1]))
 
 remaining_space = 92918 - len(chip_3)
-chip_3 += random.sample(ahmet_probes, remaining_space)
+assert (len(chip_3) <= 92918)
+assert (all(v == 1 for k, v in Counter(chip_primers).iteritems()))
 
 # Chip 4
 chip_4 = []
+chip_primers = []
 for gene, probes in meta_p_block[2].iteritems():
     for n, probe in enumerate(probes):
         chip_4.append((seq_template.format(**probe), "{}-{}".format(gene, n)))
+chip_primers.append(
+    (chip_4[-1][0].split(' ')[0], chip_4[-1][0].split(' ')[-1]))
 chip_4 += all_bridges[6]
+chip_primers.append(
+    (chip_4[-1][0].split(' ')[0], chip_4[-1][0].split(' ')[-1]))
 chip_4 += all_bridges[7]
+chip_primers.append(
+    (chip_4[-1][0].split(' ')[0], chip_4[-1][0].split(' ')[-1]))
 
-chip_4 = append_pgk1(chip_4, split_pgk1_template)
+chip_4 += remaining_zak  # Add Zak Oligos
+chip_primers.append(
+    (chip_4[-1][0].split(' ')[0], chip_4[-1][0].split(' ')[-1]))
+
+# Add failed bridges from last chip
+old_bridges_4 = []
+with open('temp/bridge_set4.csv', 'r') as f_in:
+    for n, bridge in enumerate(csv.reader(f_in)):
+        seq = "{} {} {}".format(ahmet_primers[0], bridge[0][20:-20],
+                                ahmet_primers[1])
+        old_bridges_4.append((seq, "OldBridge4-{}".format(n)))
+
+chip_4 += old_bridges_4
+chip_primers.append(
+    (chip_4[-1][0].split(' ')[0], chip_4[-1][0].split(' ')[-1]))
+remaining_space = 92918 - len(chip_4)
+
+chip_4 = append_pgk1(chip_4, pgk1_short)
 
 chip_4 += [(control_seq, 'Control-Exclude')]
+chip_primers.append(
+    (chip_4[-1][0].split(' ')[0], chip_4[-1][0].split(' ')[-1]))
 remaining_space = 92918 - len(chip_4)
-chip_4 += random.sample(ahmet_probes, remaining_space)
+assert (len(chip_4) <= 92918)
+assert (all(v == 1 for k, v in Counter(chip_primers).iteritems()))
 
 # Make an archive storing all files
 import zipfile
 from tempfile import NamedTemporaryFile
-with zipfile.ZipFile('temp/chip_10k_intron.zip', 'w',
-                     compression=zipfile.ZIP_DEFLATED) as archive:
-    for name, chip in {
-        'chip_1': chip_1,
-        'chip_2': chip_2,
-        'chip_3': chip_3,
-        'chip_4': chip_4
-    }.iteritems():
+for file in ['temp/chip_10k_intron.zip', 'temp/chip_10k_intron_ordering.zip']:
+    with zipfile.ZipFile(file, 'w',
+                         compression=zipfile.ZIP_DEFLATED) as archive:
+        for name, chip in {
+            'chip_1': chip_1,
+            'chip_2': chip_2,
+            'chip_3': chip_3,
+            'chip_4': chip_4
+        }.iteritems():
+            with NamedTemporaryFile() as f_temp:
+                cv = csv.writer(f_temp)
+                if 'ordering' in file:
+                    t_chip = [(''.join(seq.split(' ')), namel)
+                              for seq, namel in chip]
+                    cv.writerows(t_chip)
+                else:
+                    cv.writerows(chip)
+                f_temp.flush()
+                archive.write(f_temp.name, arcname=name + '.csv')
+        archive.write("temp/barcodes_6-24-15.csv", arcname='barcodes.csv')
         with NamedTemporaryFile() as f_temp:
             cv = csv.writer(f_temp)
-            cv.writerows(chip)
+            cv.writerow(['bridge', 'name'])
+            cv.writerows(set(used_bridges))
             f_temp.flush()
-            archive.write(f_temp.name, arcname=name + '.csv')
-    archive.write("temp/barcodes_6-24-15.csv", arcname='barcodes.csv')
-    with NamedTemporaryFile() as f_temp:
-        cv = csv.writer(f_temp)
-        cv.writerow(['bridge', 'name'])
-        cv.writerows(set(used_bridges))
-        f_temp.flush()
-        archive.write(f_temp.name, arcname='bridges.csv')
-
-# Make an archive storing all files for ordering
-import zipfile
-from tempfile import NamedTemporaryFile
-with zipfile.ZipFile('temp/chip_10k_intron_ordering.zip', 'w',
-                     compression=zipfile.ZIP_DEFLATED) as archive:
-    for name, chip in {
-        'chip_1': chip_1,
-        'chip_2': chip_2,
-        'chip_3': chip_3,
-        'chip_4': chip_4
-    }.iteritems():
+            archive.write(f_temp.name, arcname='bridges.csv')
         with NamedTemporaryFile() as f_temp:
             cv = csv.writer(f_temp)
-            t_chip = [(''.join(seq.split(' ')), name) for seq, name in chip]
-            cv.writerows(t_chip)
+            cv.writerow(['bridge', 'name'])
+            cv.writerows(set(used_zak_bridges))
             f_temp.flush()
-            archive.write(f_temp.name, arcname=name + '.csv')
-    archive.write("temp/barcodes_6-24-15.csv", arcname='barcodes.csv')
-    with NamedTemporaryFile() as f_temp:
-        cv = csv.writer(f_temp)
-        cv.writerow(['bridge', 'name'])
-        cv.writerows(set(used_bridges))
-        f_temp.flush()
-        archive.write(f_temp.name, arcname='bridges.csv')
+            archive.write(f_temp.name, arcname='zak_bridges.csv')
 
 ######### BLAT ALL PROBES ###############
 import align_probes
@@ -566,10 +659,8 @@ primers = [
     ['GCCCCATCATGTGCCTTTCC', 'GCCTGCGAGAGGGAAATCCA'],
     ['TGTGCGCTCCGATTGTCCTC', 'GGCCAACAGACCCCATTTGC'],
     ['ATTGAGGGTCTTCGCGTGCC', 'GGTTGCAAAGCGCCGGTTAC'],
-    ['TGCAGCTCCGCGAAATGAAG', 'AATGGCACAGACAGGCAGCG']
-    ['GACGCACATATGCGGGCAAG', 'TCCGCAGTCACGAAGATGCC']
+    ['AATTGAGCAGCTCGGGCCAC', 'AGTTGCAGGCTTCCATCGCC'],
 ]  # yapf: disable
-
 
 ahmet_primers = ['TGCAGCTCCGCGAAATGAAG', 'AATGGCACAGACAGGCAGCG']
 control_primer = ['GACGCACATATGCGGGCAAG', 'TCCGCAGTCACGAAGATGCC']

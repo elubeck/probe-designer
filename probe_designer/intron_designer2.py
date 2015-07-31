@@ -1,24 +1,21 @@
 from __future__ import division, print_function
 
 import csv
-import gzip
 import random
 import sys
 from collections import Counter
-from math import ceil
 from itertools import groupby
-from intron_locator import IntronGetter, IntronIterator
+from intron_locator import IntronGetter, ChromIntronIterator
 
 import dataset
 from Bio import SeqIO
-from Bio.Seq import Seq
 from tempfile import NamedTemporaryFile
 from progressbar import ProgressBar
 import blaster2
 from Bio.SeqRecord import SeqRecord
 from pathlib import Path
 
-from oligoarray_designer import Oligoarray, OligoarrayDesigner
+from oligoarray_designer import OligoarrayDesigner
 
 csv.field_size_limit(sys.maxsize)  # Prevent field size overflow.
 
@@ -61,19 +58,22 @@ class IntronRetriever(object):
             chrom_path = self.chromo_folder.joinpath(
                 "{}.fa.masked".format(chrom_code))
             chrom_seq = SeqIO.read(str(chrom_path), 'fasta')
-            for row in IntronIterator(chrom_code):
-                # for record in self.get_intron(row, chrom_seq):
-                #     yield record
+            for row in ChromIntronIterator(chrom_code,
+                                           skip_introns=self.skip_probes):
                 gene_records = self.get_intron(row, chrom_seq)
                 records = list(gene_records)
                 if any(records):
                     yield records
 
-    def __init__(self, organism='mouse'):
+    def __init__(self, organism='mouse', skip_probes=None):
         self.organism = organism
         self.chromo_folder = Path("db/chromFaMasked/")
         self.intron_getter = IntronGetter(in_all=True)
-        self.tot_introns = self.intron_getter.tot_records
+        if skip_probes is None:
+            self.skip_probes = []
+        else:
+            self.skip_probes = skip_probes
+        self.tot_introns = self.intron_getter.tot_records - len(skip_probes)
 
 
 def n_probes(chunk_list, probe_size=35):
@@ -324,15 +324,16 @@ def design_introns():
     # intron_db_filtered = dataset.connect(
     #     "sqlite:///db/intron_probes_filtered.db.bk")
     # filtered_probe_table = intron_db_filtered['mouse']
-    intron_retriever = IntronRetriever()
+    intron_retriever = IntronRetriever(skip_probes=used_probes)
     p_bar = ProgressBar(maxval=intron_retriever.tot_introns).start()
     for n, gene in enumerate(intron_retriever):
         p_bar.update(n)
         gene_chunks = []
         for chunk in gene:
             gene_chunks.append(chunk)
-            if n_probes(gene_chunks) > 150: break
-        # if chunk.id in used_probes: continue
+            if n_probes(gene_chunks) > 200:
+                break
+        if chunk.id in used_probes: continue
         # if len(list(filtered_probe_table.find(target=chunk.id))) >= 24:
         #     continue
         # Tagging of introns in db should be added around here
