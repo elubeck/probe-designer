@@ -1,35 +1,33 @@
-from __future__ import print_function, with_statement, division
-from future.builtins import str
-from future.builtins import map
-from future.builtins import range
-from future.builtins import object
-from operator import itemgetter
+from __future__ import division, print_function, with_statement
+
 import os
-import time
-from itertools import groupby
-from collections import defaultdict
 import re
+import time
+from collections import defaultdict
+from itertools import groupby
+from operator import itemgetter
+import tempfile
 
-from Bio.Align.Applications import ClustalOmegaCommandline, MuscleCommandline
-from Bio import Entrez
-from Bio import SeqIO
-from Bio import AlignIO
-import numpy as np
-import dataset
 import arrow
+import dataset
+import numpy as np
+from Bio import AlignIO, Entrez, SeqIO
+from Bio.Align.Applications import ClustalOmegaCommandline, MuscleCommandline
 from Bio.Application import ApplicationError
-
+from future.builtins import map, object, range, str
 
 Entrez.email = 'elubeck@caltech.edu'
 
+
 def reverse_complement(seq):
     complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
-    return [complement[c] for c in seq][::-1]
+    return "".join(complement[c] for c in seq.upper())[::-1]
 
 
 class CDSError(Exception):
     def __init__(self, exception):
         Exception.__init__(self, exception)
+
 
 class CDS(object):
     """
@@ -49,10 +47,14 @@ class CDS(object):
         iterations = 0
         max_it = 10
         while True:
-            handle1 = Entrez.esearch(db="nucleotide", term='(%s) AND %s AND mRNA' % (self.gene, self.organism),
-                                    retmax=500)
+            handle1 = Entrez.esearch(
+                db="nucleotide",
+                term='(%s) AND %s AND mRNA' % (self.gene, self.organism),
+                retmax=500)
             record = Entrez.read(handle1)
-            handle = Entrez.efetch(db='nucleotide', id=record['IdList'], rettype='gb')
+            handle = Entrez.efetch(db='nucleotide',
+                                   id=record['IdList'],
+                                   rettype='gb')
             if handle is not None:
                 break
             if iterations > max_it:
@@ -72,36 +74,33 @@ class CDS(object):
         @param aligner: program to use for alignment
         @return: list of CDS
         """
-        import random
-        r_num = ''.join(map(str, random.sample(list(range(100)), 10)))
-        in_file = "%s_temp_variant_cds.fasta" % r_num
-        out_file = "%s_temp_variant_cds_aligned.fasta" % r_num
-        with open(in_file, 'w') as f:
-            SeqIO.write(seqs, f, 'fasta')
-        if aligner == 'muscle':
-            cline = MuscleCommandline(input=in_file,
-                                      out=out_file,)
-        elif aligner == 'clustalo':
-            cline = ClustalOmegaCommandline(infile=in_file,
-                                            outfile=out_file,)
-        try:
-            stdout, stderr = cline()
-        except:
-            raise CDSError("Muscle failed for {}".format(self.gene))
-        ali = AlignIO.read(out_file, format='fasta')
+        if len(seqs) == 1:
+            return [str(seqs[0].seq)]
+        with tempfile.NamedTemporaryFile() as out_file:
+            with tempfile.NamedTemporaryFile('w') as f_in:
+                SeqIO.write(seqs, f_in, 'fasta')
+                f_in.flush()
+                if aligner == 'muscle':
+                    cline = MuscleCommandline(input=f_in.name,
+                                              out=out_file.name, )
+                elif aligner == 'clustalo':
+                    cline = ClustalOmegaCommandline(infile=f_in.name,
+                                                    outfile=out_file.name, )
+                try:
+                    stdout, stderr = cline()
+                except:
+                    raise CDSError("Muscle failed for {}".format(self.gene))
+            ali = AlignIO.read(out_file.name, format='fasta')
         ali_arr = np.array([list(rec) for rec in ali], np.character)
-        letter_count = np.sum(ali_arr != '-',0)
-        no_blanks = np.nonzero(letter_count==len(ali_arr))[0]
-        passed = [i for i in no_blanks
-                  if len(np.unique(ali_arr[:, i])) == 1]
+        letter_count = np.sum(ali_arr != '-', 0)
+        no_blanks = np.nonzero(letter_count == len(ali_arr))[0]
+        passed = [i for i in no_blanks if len(np.unique(ali_arr[:, i])) == 1]
         contiguous = []
-        for k, g in groupby(enumerate(passed), lambda i_x:i_x[0]-i_x[1]):
+        for k, g in groupby(enumerate(passed), lambda i_x: i_x[0] - i_x[1]):
             item = list(map(itemgetter(1), g))
             if len(item) >= 20:
-                assert((ali_arr[0, item] == ali_arr[1, item]).all())
+                assert ((ali_arr[0, item] == ali_arr[1, item]).all())
                 contiguous.append(''.join(ali_arr[0, item]))
-        os.remove(in_file)
-        os.remove(out_file)
         return contiguous
 
     def filter_seqs(self, handle):
@@ -139,10 +138,13 @@ class CDS(object):
             elif replaced_name in list(gene_query.keys()):
                 return list(gene_query[replaced_name])
             else:
-                raise CDSError("Too many genes returned from Entrez query for {}".format(self.gene))
+                raise CDSError(
+                    "Too many genes returned from Entrez query for {}".format(
+                        self.gene))
         elif len(gene_query) == 0:
             raise CDSError("No genes found for {}".format(self.gene))
-        raise Exception("This shouldn't have happened for {}".format(self.gene))
+        raise Exception(
+            "This shouldn't have happened for {}".format(self.gene))
 
     def extract_feature(self, cds_list, feature_query='CDS'):
         """
@@ -156,8 +158,7 @@ class CDS(object):
                 if feature.type == feature_query:
                     yield feature.extract(record)
 
-
-    def merge_cds(self, handle,):
+    def merge_cds(self, handle, ):
         """
         @type self: object
         @param handle:
@@ -173,13 +174,12 @@ class CDS(object):
             contiguous = [str(cds[0].seq)]
         else:
             raise Exception("Failed finding CDS")
-        return {"CDS List": contiguous,
-                '# Isoforms': len(cds)}
+        return {"CDS List": contiguous, '# Isoforms': len(cds)}
 
     def check_db(self):
         res = self.table.find(gene=self.gene, variants=self.variants)
         for item in res:
-            if arrow.get(item['date']) >= self.date.replace(years = -1):
+            if arrow.get(item['date']) >= self.date.replace(years=-1):
                 item['CDS List'] = item['CDS List'].split(",")
                 return item
         else:
@@ -192,19 +192,21 @@ class CDS(object):
         cds['CDS List'] = ",".join(cds['CDS List'])
         self.table.insert(cds)
 
-
     def run(self):
         db_ref = self.check_db()
         if db_ref is not None:
             print("Getting Entry from DB for {}".format(self.gene))
             return db_ref
         handle = self.mRNA_cds()
-        cds = self.merge_cds(handle,)
+        cds = self.merge_cds(handle, )
         self.save_db(cds)
-        print("Storing Entry for {} in DB table for {}".format(self.gene, self.organism))
+        print("Storing Entry for {} in DB table for {}".format(self.gene,
+                                                               self.organism))
         return cds
 
-    def __init__(self, gene, organism='"Mus musculus"[porgn:__txid10090]', variants=True):
+    def __init__(self, gene,
+                 organism='"Mus musculus"[porgn:__txid10090]',
+                 variants=True):
         self.gene = gene
         self.organism = organism
         self.variants = variants
@@ -212,17 +214,21 @@ class CDS(object):
         self.table = self.db[self.organism]
         self.date = arrow.utcnow()
 
+
 def dump_db_to_fasta(file_path, organism='"Mus musculus"[porgn:__txid10090]'):
     db = dataset.connect("sqlite:///db/cds.db")
     table = db[organism]
     with open(file_path, 'w') as f:
         for line in table.find():
-            for n,sub_seq in enumerate(line['CDS List'].split(",")):
-                fasta_str = ">{}$Block#{}\n{}\n".format(line['gene'],n, sub_seq)
+            for n, sub_seq in enumerate(line['CDS List'].split(",")):
+                fasta_str = ">{}$Block#{}\n{}\n".format(line['gene'], n,
+                                                        sub_seq)
                 f.write(fasta_str)
     print("DONE")
-        
-# dump_db_to_fasta("cds.fasta")            
+
+    # dump_db_to_fasta("cds.fasta")
+
+
 if __name__ == '__main__':
     pass
     # cds = CDS("dazl").run()

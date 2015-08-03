@@ -1,14 +1,14 @@
-from future.builtins import object
-import signal
-from collections import Counter, defaultdict
-import sys
-from time import sleep
 import collections
-
-from Bio.Blast import NCBIWWW, NCBIXML
-import pandas as pd
+import signal
+import sys
+from collections import Counter, defaultdict
+from time import sleep
 
 import dataset
+import pandas as pd
+from Bio.Blast import NCBIWWW, NCBIXML
+from future.builtins import object
+
 blast_db = dataset.connect("sqlite:///db/blast.db")
 
 class TimeoutError(Exception):
@@ -66,16 +66,9 @@ def local_blast_query(query, max_time=120, max_iterations=10, organism='"Mus mus
     return output_handle
 
 def test():
-    # fasta_query = ">BOB1\nATGCATGCATGCATGCATGCATGC"
-
     fasta_query = ">BOB1\naaatccgtgtttatccgatatgttgttggtgagtttc"
     organism='"Mus musculus"[porgn:__txid10090]'
     res = local_blast_query(fasta_query, max_time=timeout, organism=organism)
-    # gene_hits = parse_hits(res)
-    # write_db(gene_hits, organism)
-    # import time
-    # print("Taking a minute")
-    # time.sleep(60)
 
 def blast_query(query, max_time=120, max_iterations=10, organism='"Mus musculus"[porgn:__txid10090]'):
     """

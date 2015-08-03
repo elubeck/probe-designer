@@ -1,17 +1,18 @@
-from __future__ import print_function, with_statement, division
-from future.builtins import str
-from future.builtins import object
-from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import Select
-import pandas as pd
+from __future__ import division, print_function, with_statement
+
 import subprocess
-import dataset
-import arrow
 from random import getrandbits
+
+import arrow
+import dataset
+import pandas as pd
+from future.builtins import object, str
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import Select, WebDriverWait
+
 
 class Biosearch(object):
     def close(self):

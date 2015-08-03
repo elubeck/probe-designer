@@ -1,5 +1,11 @@
 from __future__ import print_function
-from probe_designer import get_probes
+
+from itertools import groupby
+from random import getrandbits
+
+import pandas as pd
+
+from probe_designer import batch_blast_probes, get_probes
 
 with open("/home/eric/cds.fasta", 'r') as f1:
     names = []
@@ -28,7 +34,6 @@ probe_df['Masking'] = [632 for i in range(len(probe_df))]
 # probe_df['CDS Region #'] = [i for i in range(len(probe_df))]
     
 
-from probe_designer import batch_blast_probes
 cds_org = '"Mus musculus"[porgn:__txid10090]'
 organism = "mouse"
 debug = False
@@ -69,4 +74,3 @@ i = ['Loxl1', 'Plagl1', 'Col5a1', 'Plcxd2', 'Htr2c', 'Matn2', 'Ctgf',
 for gene in i:
     if gene not in passed_names:
         print("SAD", gene)
-
