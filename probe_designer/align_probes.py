@@ -9,7 +9,8 @@ import csv
 def find_chromosome(gene):
     db = dataset.connect("sqlite:///db/refGene.db")
     table = db['mouse']
-    hits = {r['chrom'] for r in table.find(name2=gene)}
+    # Some genes may hit annotated chromosome fragments.  Ignore these fragments to prevent errors
+    hits = {r['chrom'].split('_')[0] for r in table.find(name2=gene)}
     if len(hits) != 1:
         raise Exception()
     return list(hits)[0]
@@ -30,7 +31,7 @@ def blat_probes(probe_list, chromosome):
                   'strand', 'qName', 'qSize', 'qStart', 'qEnd', 'tName',
                   'tSize', 'tStart', 'tEnd', 'blockCount', 'blockSizes',
                   'qStarts', 'tStarts', 'queryAligns', 'subjectAligns']
-    db_path = "db/chromFaMasked/{}.fa.masked".format(chromosome)
+    db_path = "db/mouse/chromFaMasked/{}.fa.masked".format(chromosome)
     res = []
     with NamedTemporaryFile() as fasta_file:
         fasta_str = "\n".join(">{}\n{}".format(n, items)
