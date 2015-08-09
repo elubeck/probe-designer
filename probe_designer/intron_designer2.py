@@ -219,9 +219,9 @@ class ProbeFilter(object):
         """
         hit_vals = []
         for probe_name, matches in hits.iteritems():
-            gene_name = probe_name.split(",")[0]
+            gene_name = probe_name.split(",")[0].lower()
             if any(matches):  # Added incase no matches
-                gencode_id, refseq = map(list, zip(*[match.split(',')
+                gencode_id, refseq = map(list, zip(*[match.lower().split(',')
                                                      for match in matches]))
             else:
                 gencode_id, refseq = [], []
