@@ -1,4 +1,6 @@
-from __future__ import division, print_function, unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+from builtins import *
 
 import copy
 import csv
@@ -7,12 +9,14 @@ import signal
 import sys
 from collections import Counter, defaultdict
 from itertools import groupby
+import json
 from tempfile import NamedTemporaryFile
 
 import dataset
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
+from operator import itemgetter
 from pathlib import Path
 from progressbar import ProgressBar
 
@@ -291,6 +295,7 @@ def sub_seq_splitter(seq, size,
     """
     assert (isinstance(seq, unicode))
     # Generate all probes
+    # Probes start and ending position includes spacing.
     probes = []
     for seed in range(0, len(seq) - size, stride):
         p_seq = seq[seed:seed + size]
@@ -426,7 +431,7 @@ def probe_set_refiner(pset_i, block_size=18):
 
 
 def batch_design(genes, max_time=180):
-    db = dataset.connect("sqlite:///db/tf_mrna_probes.db")
+    db = dataset.connect("sqlite:///db/mrna_probes.db")
     p_table = db['unfiltered_probes']
     cds_table = db['cds_table']
     mr = mRNARetriever()
@@ -434,7 +439,6 @@ def batch_design(genes, max_time=180):
     gene_probes = defaultdict(list)
     pbar = ProgressBar(maxval=len(genes)).start()
     failed = []
-    passed_set = {}
     used = {g['target'] for g in p_table.distinct('target')}
     for n, gene in enumerate(genes):
         pbar.update(n)
@@ -462,7 +466,7 @@ def batch_design(genes, max_time=180):
                     failed.append(gene)
                 cds_records[gene] = gene_records
                 for chunk in cds_records[gene]:
-                    for probe in sub_seq_splitter(unicode(chunk), 35,
+                    for probe in sub_seq_splitter(str(chunk), 35,
                                                   gc_min=0.35,
                                                   o_mode=2):
                         gene_probes[gene].append(probe)
@@ -473,6 +477,220 @@ def batch_design(genes, max_time=180):
             print("Timedout at {}".format(gene))
     pbar.finish()
     return gene_probes
+
+
+def design_step(gene, max_time=180):
+    rr = RNARetriever2()
+    probes = []
+    try:
+        with timeout(seconds=max_time):
+            try:
+                gene_records = [
+                    str(record.seq)
+                    for record in rr.get_single_rna(gene,
+                                                    chunk_size=100000)
+                ]
+            except:
+                print("Record lookup fail at {}".format(gene))
+                return ("FAILED", [], [])
+            for chunk in gene_records:
+                for probe in sub_seq_splitter(str(chunk), 35,
+                                              gc_min=0.35,
+                                              o_mode=2):
+                    probes.append(probe)
+            return gene, probes, gene_records
+    except TimeoutError:
+        print("Timedout at {}".format(gene))
+        return ("FAILED", [], [])
+
+
+def batch_design2(genes, max_time=180):
+    db = dataset.connect("sqlite:///db/mrna_probes2.db")
+    p_table = db['unfiltered_probes']
+    cds_table = db['cds_table']
+    mr = mRNARetriever()
+    gene_probes = defaultdict(list)
+    pbar = ProgressBar(maxval=len(genes)).start()
+    used = {g['target'] for g in p_table.distinct('target')}
+    rr = RNARetriever2()
+    gi = (gene for gene in genes if gene not in used)
+    gene_probes = {}
+    from multiprocessing import Pool, cpu_count
+    from functools import partial
+    d_wrap = partial(design_step, max_time=max_time)
+    p = Pool(cpu_count())
+    for n, vals in enumerate(p.imap(d_wrap, gi)):
+        gene, probes, gene_records = vals
+        if gene == "FAILED": continue
+        rec_table = [
+            {"target": gene,
+             "seq": cds,
+             "number": rec_num} for rec_num, cds in enumerate(gene_records)
+        ]
+        cds_table.insert_many(rec_table)
+        flat_p = [{'target': gene, 'seq': probe} for probe in probes]
+        p_table.insert_many(flat_p)
+        gene_probes[gene] = probes
+        pbar.update(n)
+    pbar.finish()
+    return gene_probes
+
+
+class SequenceGetter(object):
+    """
+    Gets sequences from refgenome table
+    """
+
+    def get_range(self, sequence, min_size=20):
+        #Find longest contiguous sequences
+        ranges = []
+        for k, g in groupby(enumerate(sequence), lambda (i, x): i - x):
+            group = [itemgetter(1)(v) for v in g]
+            start = group[0]
+            end = group[-1]
+            if end - start > min_size:
+                ranges.append((start, end))
+        return ranges
+
+    def get_positions(self, gene):
+        """
+        Finds position of exons for gene
+        """
+
+        def splitter(string):
+            return [int(k) for k in string.strip(',').split(',')]
+
+        if gene['strand'] == '+':
+            start = int(gene['txStart'])
+            end = int(gene['txEnd'])
+            e_start = splitter(gene['exonStarts'])
+            e_end = splitter(gene['exonEnds'])
+        elif gene['strand'] == '-':
+            # Flip things around
+            start = int(gene['txEnd'])
+            end = int(gene['txStart'])
+            e_start = splitter(gene['exonStarts'])[::-1]
+            e_end = splitter(gene['exonEnds'])[::-1]
+        return (start, end, e_start, e_end)
+
+    def __init__(self, table=None, ):
+        if table is None:
+            db = dataset.connect("sqlite:///db/refGene.db")
+            self.table = db['mouse']
+        else:
+            self.table = table
+        self.tot_records = len(list(self.table.distinct('name2')))
+
+
+class RNAGetter(SequenceGetter):
+    def get_rna(self, gene_isoforms, ):
+        """
+        Get all rnas from a gene and return in transcribed order.
+        Only chooses exons in every isoform.
+        """
+        rna_set = []
+        for gene in gene_isoforms:
+            tx_start, tx_end, e_start, e_end = self.get_positions(gene)
+            exon_pos = {
+                p
+                for end, start in zip(e_end, e_start)
+                for p in range(*sorted([end, start]))
+            }
+            rna_set.append(exon_pos)
+
+        # Get Regions in Every Isoform
+        conserved_regions = set.intersection(*rna_set)
+        rna_regions = []
+        for contiguous_frag in self.get_range(conserved_regions):
+            rna_regions.append(contiguous_frag)
+        # Remove duplicate rnas from spliceoforms and return sorted result
+        rnas = sorted(set(rna_regions), key=lambda x: x[0])
+        if gene['strand'] == "+":
+            return rnas
+        elif gene['strand'] == '-':
+            return rnas[::-1]
+
+    def run_gene(self, gene):
+        """
+        Wrapper for finding results for a gene
+        """
+        hits = list(self.table.find(name2=gene))
+        return {
+            'chrom': hits[0]['chrom'],
+            'strand': hits[0]['strand'],
+            'name2': gene,
+            'exons': self.get_rna(hits, )
+        }
+
+    def __init__(self, table=None, ):
+        super(RNAGetter, self).__init__(table, )
+
+
+class RNAIterator(RNAGetter):
+    def __iter__(self):
+        for chromosome in self.table.distinct('chrom'):
+            chrom_code = chromosome['chrom']
+            for row in self.table.distinct('name2', chrom=chrom_code):
+                name2 = row['name2']
+                yield self.run_gene(name2)
+
+    def __init__(self, ):
+        super(self.__class__, self).__init__()
+
+
+def gc_count(probe):
+    return len([1 for c in probe.lower() if c in ['c', 'g']]) / len(probe)
+
+
+class RNARetriever2(object):
+    def get_single_rna(self, gene, chunk_size=1000):
+        row = self.rna_getter.run_gene(gene)
+        chrom_code = row['chrom']
+        chrom_path = self.chromo_folder.joinpath(
+            "{}.fa.masked".format(chrom_code))
+        chrom_seq = SeqIO.read(str(chrom_path), 'fasta')
+        return self.get_rna(row, chrom_seq, chunk_size)
+
+    def get_rna(self, row, chrom_seq, chunk_size=1000):
+        name2 = row['name2']
+        if not row['exons']:
+            yield None
+            return
+        for start, end in row['exons']:
+            seq = chrom_seq[start:end + 1]
+            if row['strand'] == "+":  #TODO: CHECK THAT THIS IS CORRECT
+                seq = seq.reverse_complement()
+            # Drop masked sequences
+            for sub_seq in seq.seq.split("N"):
+                if len(sub_seq) >= 20:
+                    record = SeqRecord(sub_seq,
+                                       name=name2,
+                                       id=name2,
+                                       description='')
+                    for start in range(0, len(record), chunk_size):
+                        yield record[start:start + chunk_size]
+
+    def __iter__(self):
+        for chromosome in self.rna_getter.table.distinct('chrom'):
+            chrom_code = chromosome['chrom']
+            chrom_path = self.chromo_folder.joinpath(
+                "{}.fa.masked".format(chrom_code))
+            chrom_seq = SeqIO.read(str(chrom_path), 'fasta')
+            for row in ChromIntronIterator(chrom_code,
+                                           skip_rnas=self.skip_probes):
+                gene_records = self.get_rna(row, chrom_seq)
+                records = list(gene_records)
+                if any(records):
+                    yield records
+
+    def __init__(self, organism='mouse', skip_probes=None):
+        self.organism = organism
+        self.chromo_folder = Path("db/{}/chromFaMasked/".format(organism))
+        self.rna_getter = RNAGetter()
+        if not skip_probes:
+            skip_probes = []
+        self.skip_probes = skip_probes
+        self.tot_rnas = self.rna_getter.tot_records - len(skip_probes)
 
 
 if __name__ == '__main__':
