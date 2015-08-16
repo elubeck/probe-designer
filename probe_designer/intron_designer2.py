@@ -67,7 +67,7 @@ class IntronRetriever(object):
 
     def __init__(self, organism='mouse', skip_probes=None):
         self.organism = organism
-        self.chromo_folder = Path("db/chromFaMasked/")
+        self.chromo_folder = Path("db/{}/chromFaMasked/".format(organism))
         self.intron_getter = IntronGetter(in_all=True)
         if skip_probes is None:
             self.skip_probes = []
