@@ -39,7 +39,7 @@ class IntronRetriever(object):
             yield None
             return
         for start, end in row['introns']:
-            seq = chrom_seq[start:end + 1]
+            seq = chrom_seq[start:end]
             if row['strand'] == "+":  #TODO: CHECK THAT THIS IS CORRECT
                 seq = seq.reverse_complement()
             # Drop masked sequences

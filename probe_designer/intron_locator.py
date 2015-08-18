@@ -68,8 +68,8 @@ class IntronGetter(object):
                                    e_start[1:]))  # Add all remaining introns
             intron_pos = {
                 p
-                for end, start in to_flatten for p in range(*sorted([end,
-                                                                     start]))
+                for end, start in to_flatten
+                for p in range(*sorted([end + 1, start + 1]))
             }
             rna_set.append(intron_pos)
 
