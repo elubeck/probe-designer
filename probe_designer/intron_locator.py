@@ -90,68 +90,6 @@ class IntronGetter(object):
         elif gene['strand'] == '-':
             return rnas[::-1]
 
-    def get_intron2(self, gene_isoforms, in_all=False):
-        """
-        Get all introns from a gene and return in transcribed order.
-        Removes regions that overlap exons
-        If in_all=True makes sure selected introns are in all isoforms.
-        """
-        intron_set = []
-        tx_starts = []
-        tx_ends = []
-        for gene in gene_isoforms:
-            gene_introns = []
-            tx_start, tx_end, e_start, e_end = self.get_positions(gene)
-            tx_starts.append(tx_start)
-            tx_ends.append(tx_end)
-            # if gap between start and 1st exon
-            gene_introns.append(sorted([tx_start, e_start[0] - 1]))
-            # Iterate all middle introns
-            for end, start in zip(e_end[:-1], e_start[1:]):
-                gene_introns.append(sorted([end + 1, start - 1]))
-            # Add last exon
-            gene_introns.append(sorted([e_end[0], tx_end]))
-            intron_set.append(
-                [{'start': start,
-                  'end': end,
-                  'length': end - start} for start, end in gene_introns
-                 if end - start != 0])
-        if in_all:
-            if gene['strand'] == "+":
-                intron_set = [[intron for intron in isoform
-                               if intron['start'] >= max(tx_starts)
-                               if intron['end'] <= min(tx_ends)]
-                              for isoform in intron_set]
-            if gene['strand'] == '-':
-                intron_set = [[intron for intron in isoform
-                               if intron['start'] <= min(tx_starts)
-                               if intron['end'] >= max(tx_ends)
-                               if intron['end'] <= min(tx_starts)]
-                              for isoform in intron_set]
-        # Make set of points that are only intron1, not any other exons
-        exon_pos = self.exons[gene['chrom']
-                              ]  # Get all the exons for chromosome
-        isoform_regions = []
-        for isoform in intron_set:
-            reg = []
-            for intron in isoform:
-                intron_range = set(range(intron['start'], intron['end']))
-                non_overlapping = sorted(intron_range.difference(exon_pos))
-                for r_vals in self.get_range(non_overlapping):
-                    for p in range(*r_vals):
-                        reg.append(p)
-            isoform_regions.append(set(reg))
-        overlapping_isoforms = set.intersection(*isoform_regions)
-        intron_regions = [reg for reg in self.get_range(overlapping_isoforms)]
-        import ipdb
-        ipdb.set_trace()
-        # Remove duplicate introns from spliceoforms and return sorted result
-        introns = sorted(set(intron_regions), key=lambda x: x[0])
-        if gene['strand'] == "+":
-            return introns
-        elif gene['strand'] == '-':
-            return introns[::-1]
-
     def run_gene(self, gene):
         """
         Wrapper for finding results for a gene
