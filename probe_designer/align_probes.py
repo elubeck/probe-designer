@@ -1,6 +1,5 @@
 from __future__ import print_function, division
 import dataset
-import intron_designer2
 from subprocess import call
 from tempfile import NamedTemporaryFile
 import csv
@@ -49,6 +48,41 @@ def blat_probes(probe_list, chromosome):
                 vals.update(query)
                 res.append(vals)
     return res
+
+
+def blat_wrapper(d):
+    try:
+        gene, passed = d
+        gene = gene[0].upper() + gene[1:]
+        if not passed:
+            return {}
+        chr = find_chromosome(gene)
+        chr_positions = blat_probes(passed, chr)
+        for pos in chr_positions:
+            pos.update({'target': gene})
+        return chr_positions
+    except:
+        return {}
+
+
+from multiprocessing import Pool, cpu_count
+from progressbar import ProgressBar
+from itertools import imap
+
+
+def blat_pset(p_set, f_name):
+    # TODO: ORGANIZE BY CHROMOSOME
+    n_genes = len(p_set)
+    p_bar = ProgressBar(maxval=n_genes)
+    p = Pool(processes=cpu_count())
+    with open('temp/{}'.format(f_name), 'wb') as f_out:
+        bed = csv.writer(f_out, delimiter='\t')
+        for n, chr_positions in enumerate(imap(blat_wrapper, p_set.items())):
+            for align in chr_positions:
+                bed.writerow([align['tName'], align['tStart'], align['tEnd'],
+                              align['strand'],
+                              align['target'] + '-' + align['qName']])
+            p_bar.update(n)
 
 # #TODO:  Blast all probes and search for off target hits
 # gene = "Pgk1"
