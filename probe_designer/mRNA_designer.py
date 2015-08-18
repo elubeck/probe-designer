@@ -54,50 +54,6 @@ class timeout(object):
         signal.alarm(0)
 
 
-# TODO: FINISH ME
-class mRNARetriever(object):
-    """
-    Gets mRNAs from mouse genome.
-    """
-
-    def get_mRNA(self, target, chunk_size=1000):
-        """
-        Given a target(refseq name) returns the sequence of probes in increments of chunk_size.  Aligns all variants of a gene to ensure correct common sequence amongst alternatively spliced transcripts.
-        """
-        hits = []
-        for file_name in Path("db/").glob("mouse.*.rna.fna"):
-            with open(str(file_name), 'r') as fin:
-                for record in SeqIO.parse(fin, 'fasta'):
-                    if "({})".format(
-                        target.lower()) in record.description.lower():
-                        hits.append(record)
-        for sub_seq in get_seq.CDS(target).align_seqs(hits):
-            if len(sub_seq) >= 20:
-                record = SeqRecord(Seq(sub_seq),
-                                   name=target,
-                                   id=target,
-                                   description='')
-                for start in range(0, len(record), chunk_size):
-                    yield record[start:start + chunk_size]
-
-    def __iter__(self):
-        """
-        Iterates over entire refseq gene list.
-        """
-        with open("db/Refseq2Gene.tsv", "r") as f_in:
-            ref_names = {
-                gene_name
-                for rnum, gene_name in csv.reader(f_in,
-                                                  delimiter='\t')
-            }
-            for gene in ref_names:
-                for record in self.get_mRNA(gene):
-                    yield record
-
-    def __init__(self, organism='mouse'):
-        self.organism = organism
-
-
 def n_probes(chunk_list, probe_size=35):
     # Get # of probes that could be made from set of gene chunks
     return sum(len(chunk) // probe_size for chunk in chunk_list)
@@ -479,7 +435,7 @@ def batch_design(genes, max_time=180):
     return gene_probes
 
 
-def design_step(gene, max_time=180):
+def design_step(gene, max_time=180, cds_only=False):
     rr = RNARetriever2()
     probes = []
     try:
@@ -488,7 +444,8 @@ def design_step(gene, max_time=180):
                 gene_records = [
                     str(record.seq)
                     for record in rr.get_single_rna(gene,
-                                                    chunk_size=100000)
+                                                    chunk_size=100000,
+                                                    cds_only=cds_only)
                 ]
             except:
                 print("Record lookup fail at {}".format(gene))
@@ -504,11 +461,13 @@ def design_step(gene, max_time=180):
         return ("FAILED", [], [])
 
 
-def batch_design2(genes, max_time=180):
-    db = dataset.connect("sqlite:///db/mrna_probes2.db")
+def batch_design2(genes,
+                  max_time=180,
+                  cds_only=False,
+                  db_name='mrna_probes_full_tx'):
+    db = dataset.connect("sqlite:///db/{}.db".format(db_name))
     p_table = db['unfiltered_probes']
     cds_table = db['cds_table']
-    mr = mRNARetriever()
     gene_probes = defaultdict(list)
     pbar = ProgressBar(maxval=len(genes)).start()
     used = {g['target'] for g in p_table.distinct('target')}
@@ -517,8 +476,9 @@ def batch_design2(genes, max_time=180):
     gene_probes = {}
     from multiprocessing import Pool, cpu_count
     from functools import partial
-    d_wrap = partial(design_step, max_time=max_time)
+    d_wrap = partial(design_step, max_time=max_time, cds_only=cds_only)
     p = Pool(cpu_count())
+    from itertools import imap
     for n, vals in enumerate(p.imap(d_wrap, gi)):
         gene, probes, gene_records = vals
         if gene == "FAILED": continue
@@ -543,6 +503,7 @@ class SequenceGetter(object):
 
     def get_range(self, sequence, min_size=20):
         #Find longest contiguous sequences
+        sequence = sorted(sequence)
         ranges = []
         for k, g in groupby(enumerate(sequence), lambda (i, x): i - x):
             group = [itemgetter(1)(v) for v in g]
@@ -565,13 +526,17 @@ class SequenceGetter(object):
             end = int(gene['txEnd'])
             e_start = splitter(gene['exonStarts'])
             e_end = splitter(gene['exonEnds'])
+            cds_start = int(gene['cdsStart'])
+            cds_end = int(gene['cdsEnd'])
         elif gene['strand'] == '-':
             # Flip things around
             start = int(gene['txEnd'])
             end = int(gene['txStart'])
             e_start = splitter(gene['exonStarts'])[::-1]
             e_end = splitter(gene['exonEnds'])[::-1]
-        return (start, end, e_start, e_end)
+            cds_end = int(gene['cdsStart'])
+            cds_start = int(gene['cdsEnd'])
+        return (start, end, e_start, e_end, cds_start, cds_end)
 
     def __init__(self, table=None, ):
         if table is None:
@@ -583,34 +548,65 @@ class SequenceGetter(object):
 
 
 class RNAGetter(SequenceGetter):
-    def get_rna(self, gene_isoforms, ):
+    def get_rna(self, gene_isoforms, cds_only=False):
         """
         Get all rnas from a gene and return in transcribed order.
-        Only chooses exons in every isoform.
+        Only chooses exons in every isoform.  If cds_only is true,
+        only choose regions from CDS.
         """
+
+        def range_unpacker(vals):
+            v0, v1 = sorted(vals)
+            return set(range(v0 + 1, v1 + 1))
+
         rna_set = []
-        for gene in gene_isoforms:
-            tx_start, tx_end, e_start, e_end = self.get_positions(gene)
-            exon_pos = {
-                p
-                for end, start in zip(e_end, e_start)
-                for p in range(*sorted([end, start]))
-            }
+        exon_unions = []
+        for isoform in gene_isoforms:
+            tx_start, tx_end, e_start, e_end, cds_start, cds_end = self.get_positions(
+                isoform)
+            if cds_only is True:
+                span = range_unpacker([cds_end, cds_start])
+            else:
+                span = range_unpacker([tx_start, tx_end])
+            exon_pos = [
+                p for start, end in zip(e_start, e_end)
+                for p in range_unpacker([start, end]) if p in span
+            ]
             rna_set.append(exon_pos)
+            exon_unions.append(
+                {tuple(sorted(pos))
+                 for pos in zip(e_end[:-1], e_start[1:])})
 
         # Get Regions in Every Isoform
-        conserved_regions = set.intersection(*rna_set)
-        rna_regions = []
-        for contiguous_frag in self.get_range(conserved_regions):
-            rna_regions.append(contiguous_frag)
-        # Remove duplicate rnas from spliceoforms and return sorted result
-        rnas = sorted(set(rna_regions), key=lambda x: x[0])
-        if gene['strand'] == "+":
-            return rnas
-        elif gene['strand'] == '-':
-            return rnas[::-1]
+        conserved_regions = sorted(set.intersection(*(set(v)
+                                                      for v in rna_set)))
+        all_unions = set.intersection(*exon_unions)
+        contigs = sorted(self.get_range(conserved_regions))
+        union_lookup = dict((k, v + 1) for k, v in all_unions)
 
-    def run_gene(self, gene):
+        # Combine regions that are seperated by an intron but contiguous for RNA
+        i_frags = iter(contigs)
+
+        frags = [next(i_frags, None)]
+        while True:
+            reg = next(i_frags, None)
+            if reg is None:
+                break
+            if frags[-1][-1] in union_lookup:
+                first_ind = union_lookup[frags[-1][-1]]
+                if first_ind == reg[0]:
+                    frags[-1] = frags[-1] + reg
+            else:
+                frags.append(reg)
+        rnas = sorted(sorted(zip(r[0::2], r[1::2])) for r in frags)
+
+        # Remove duplicate rnas from spliceoforms and return sorted result
+        if isoform['strand'] == "+":
+            return rnas
+        elif isoform['strand'] == '-':
+            return [r[::-1] for r in rnas][::-1]
+
+    def run_gene(self, gene, cds_only=False):
         """
         Wrapper for finding results for a gene
         """
@@ -619,7 +615,7 @@ class RNAGetter(SequenceGetter):
             'chrom': hits[0]['chrom'],
             'strand': hits[0]['strand'],
             'name2': gene,
-            'exons': self.get_rna(hits, )
+            'exons': self.get_rna(hits, cds_only)
         }
 
     def __init__(self, table=None, ):
@@ -643,25 +639,28 @@ def gc_count(probe):
 
 
 class RNARetriever2(object):
-    def get_single_rna(self, gene, chunk_size=1000):
-        row = self.rna_getter.run_gene(gene)
+    def get_single_rna(self, gene, chunk_size=1000, cds_only=False):
+        row = self.rna_getter.run_gene(gene, cds_only)
         chrom_code = row['chrom']
         chrom_path = self.chromo_folder.joinpath(
             "{}.fa.masked".format(chrom_code))
         chrom_seq = SeqIO.read(str(chrom_path), 'fasta')
         return self.get_rna(row, chrom_seq, chunk_size)
 
-    def get_rna(self, row, chrom_seq, chunk_size=1000):
+    def get_rna(self, row, chrom_seq, chunk_size=10000000):
         name2 = row['name2']
         if not row['exons']:
             yield None
             return
-        for start, end in row['exons']:
-            seq = chrom_seq[start:end + 1]
-            if row['strand'] == "+":  #TODO: CHECK THAT THIS IS CORRECT
-                seq = seq.reverse_complement()
-            # Drop masked sequences
-            for sub_seq in seq.seq.split("N"):
+        for exon in row['exons']:
+            exon_seq = ""
+            for start, end in exon:
+                seq = chrom_seq[start:end]
+                if row['strand'] == "+":  #TODO: CHECK THAT THIS IS CORRECT
+                    seq = seq.reverse_complement()
+                exon_seq += seq.seq
+                # Drop masked sequences
+            for sub_seq in exon_seq.split("N"):
                 if len(sub_seq) >= 20:
                     record = SeqRecord(sub_seq,
                                        name=name2,
