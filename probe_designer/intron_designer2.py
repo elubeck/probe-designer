@@ -53,7 +53,10 @@ class IntronRetriever(object):
                         yield record[start:start + chunk_size]
 
     def __iter__(self):
-        for chromosome in self.intron_getter.table.distinct('chrom'):
+        chrom_i = self.intron_getter.table.distinct('chrom')
+        if self.reversed is True:
+            chrom_i = reversed(list(chrom_i))
+        for chromosome in chrom_i:
             chrom_code = chromosome['chrom']
             chrom_path = self.chromo_folder.joinpath(
                 "{}.fa.masked".format(chrom_code))
@@ -65,7 +68,7 @@ class IntronRetriever(object):
                 if any(records):
                     yield records
 
-    def __init__(self, organism='mouse', skip_probes=None):
+    def __init__(self, organism='mouse', skip_probes=None, reversed=False):
         self.organism = organism
         self.chromo_folder = Path("db/{}/chromFaMasked/".format(organism))
         self.intron_getter = IntronGetter(in_all=True)
@@ -74,6 +77,7 @@ class IntronRetriever(object):
         else:
             self.skip_probes = skip_probes
         self.tot_introns = self.intron_getter.tot_records - len(skip_probes)
+        self.reversed = reversed
 
 
 def n_probes(chunk_list, probe_size=35):
@@ -310,9 +314,9 @@ class ProbeFilter(object):
 # passed = [t_name for t_name in targets if len(list(filtered_probe_table.find(target=t_name))) >= 24]
 
 
-def design_introns():
+def design_introns(reversed=False):
     # First get used probes
-    intron_db = dataset.connect("sqlite:///db/intron_probes_10k_2.db")
+    intron_db = dataset.connect("sqlite:///db/intron_probes_10k_3.db")
     probe_db = intron_db['mouse']
     used_probes = set([row['Name'] for row in probe_db.distinct("Name")])
     o = OligoarrayDesigner(
@@ -324,7 +328,8 @@ def design_introns():
     # intron_db_filtered = dataset.connect(
     #     "sqlite:///db/intron_probes_filtered.db.bk")
     # filtered_probe_table = intron_db_filtered['mouse']
-    intron_retriever = IntronRetriever(skip_probes=used_probes)
+    intron_retriever = IntronRetriever(skip_probes=used_probes,
+                                       reversed=reversed)
     p_bar = ProgressBar(maxval=intron_retriever.tot_introns).start()
     for n, gene in enumerate(intron_retriever):
         p_bar.update(n)
@@ -342,11 +347,10 @@ def design_introns():
             with NamedTemporaryFile("w") as fasta_input:
                 # Break records into 1000nt chunks
                 for gene_chunks in chunks:
-                    if n_probes(gene_chunks) > 200:
-                        # Reduce potential probeset size to drop design time
-                        while n_probes(gene_chunks, probe_size) > 200:
-                            gene_chunks = random.sample(gene_chunks,
-                                                        len(gene_chunks) - 1)
+                    # Reduce potential probeset size to drop design time
+                    while n_probes(gene_chunks, probe_size) > 200:
+                        gene_chunks = random.sample(gene_chunks,
+                                                    len(gene_chunks) - 1)
                     SeqIO.write(gene_chunks, fasta_input,
                                 'fasta')  # write all sequences to file
                 fasta_input.flush()
