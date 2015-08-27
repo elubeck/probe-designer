@@ -290,6 +290,7 @@ def sub_seq_splitter(seq, size,
         seq: [hit for query, hit in over_probes][0]
         for seq, over_probes in groupby(overlapping_b.items(),
                                         key=lambda x: x[0])
+    }
 
     # Group probes by difference from target gc
     probe_groups = [(k, list(v))
@@ -410,8 +411,7 @@ def batch_design(genes, max_time=180):
                 cds_records[gene] = gene_records
                 for chunk in cds_records[gene]:
                     for probe in sub_seq_splitter(str(chunk), 35,
-                                                  gc_min=0.35,
-                                                  ):
+                                                  gc_min=0.35, ):
                         gene_probes[gene].append(probe)
                     flat_p = [{'target': gene,
                                'seq': probe} for probe in gene_probes[gene]]
