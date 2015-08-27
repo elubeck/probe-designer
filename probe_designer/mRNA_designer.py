@@ -245,7 +245,8 @@ def sub_seq_splitter(seq, size,
                      spacing=2,
                      gc_min=None,
                      gc_max=None,
-                     o_mode=1):
+                     o_mode=1,
+                     debug=True):
     """
     Takes sequence and designs best probes of given size closests to gc_target.
     """
@@ -347,16 +348,17 @@ def sub_seq_splitter(seq, size,
         probe_index += 1
 
     # DEBUG_START
-    passed_or = defaultdict(list)
-    for probe in passed_probes:
-        for probe_m in probes:
-            if probe_m['seq'] == probe:
-                passed_or[probe].append(probe_m)
-    dog_head = sorted([i['start'] for p in passed_or.values() for i in p])
-    dog_poop = [i2 - i1 for i2, i1 in zip(dog_head[1:], dog_head[:-1])]
-    for v in dog_poop:
-        if v < 37:
-            raise Exception("Probe design fail")
+    if debug:
+        passed_or = defaultdict(list)
+        for probe in passed_probes:
+            for probe_m in probes:
+                if probe_m['seq'] == probe:
+                    passed_or[probe].append(probe_m)
+        dog_head = sorted([i['start'] for p in passed_or.values() for i in p])
+        dog_poop = [i2 - i1 for i2, i1 in zip(dog_head[1:], dog_head[:-1])]
+        for v in dog_poop:
+            if v < 37:
+                raise Exception("Probe design fail")
     # DEBUG_END
     return passed_probes
 
