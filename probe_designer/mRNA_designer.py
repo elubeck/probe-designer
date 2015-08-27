@@ -245,7 +245,6 @@ def sub_seq_splitter(seq, size,
                      spacing=2,
                      gc_min=None,
                      gc_max=None,
-                     o_mode=1,
                      debug=True):
     """
     Takes sequence and designs best probes of given size closests to gc_target.
@@ -272,41 +271,27 @@ def sub_seq_splitter(seq, size,
     # Build list of overlapping probes
     probe_indices = [set(range(probe['start'], probe['end']))
                      for probe in probes]
-    if o_mode == 1:
-        overlapping = []
-        for probe_n, probe_ind in enumerate(probe_indices):
-            for i in range(len(probe_indices)):
-                if i != probe_n:
-                    if any(probe_ind & probe_indices[i]):
-                        overlapping.append((probes[probe_n], probes[i]))
-        overlapping_2 = {
-            probe['seq']: [hit for query, hit in over_probes]
-            for probe, over_probes in groupby(overlapping,
-                                              key=lambda x: x[0])
-        }
-    if o_mode == 2:
-        seq_lookup = {probe['seq']: probe for probe in probes}
-        overlapping = defaultdict(list)
-        for probe_n, probe_ind in enumerate(probe_indices):
-            for i in range(probe_n, len(probe_indices)):
-                if i != probe_n:
-                    if any(probe_ind & probe_indices[i]):
-                        overlapping[probes[probe_n]['seq']].append(probes[i])
-        overlapping_b = copy.deepcopy(overlapping)
-        for k, v in overlapping.iteritems():
-            pl = seq_lookup[k]
-            for i2 in v:
-                overlapping_b[i2['seq']].append(pl)
-        # Get probes that don't overlap anything!
-        for seq in set(seq_lookup.keys()).difference(overlapping_b.keys()):
-            overlapping_b[seq] = []
-        overlapping_2 = {
-            seq: [hit for query, hit in over_probes][0]
-            for seq, over_probes in groupby(overlapping_b.items(),
-                                            key=lambda x: x[0])
-        }
+    seq_lookup = {probe['seq']: probe for probe in probes}
+    overlapping = defaultdict(list)
+    for probe_n, probe_ind in enumerate(probe_indices):
+        for i in range(probe_n, len(probe_indices)):
+            if i != probe_n:
+                if any(probe_ind & probe_indices[i]):
+                    overlapping[probes[probe_n]['seq']].append(probes[i])
+    overlapping_b = copy.deepcopy(overlapping)
+    for k, v in overlapping.iteritems():
+        pl = seq_lookup[k]
+        for i2 in v:
+            overlapping_b[i2['seq']].append(pl)
+    # Get probes that don't overlap anything!
+    for seq in set(seq_lookup.keys()).difference(overlapping_b.keys()):
+        overlapping_b[seq] = []
+    overlapping_2 = {
+        seq: [hit for query, hit in over_probes][0]
+        for seq, over_probes in groupby(overlapping_b.items(),
+                                        key=lambda x: x[0])
 
-        # Group probes by difference from target gc
+    # Group probes by difference from target gc
     probe_groups = [(k, list(v))
                     for k, v in groupby(probes,
                                         key=lambda x: abs(gc_target - x['gc']))
@@ -426,7 +411,7 @@ def batch_design(genes, max_time=180):
                 for chunk in cds_records[gene]:
                     for probe in sub_seq_splitter(str(chunk), 35,
                                                   gc_min=0.35,
-                                                  o_mode=2):
+                                                  ):
                         gene_probes[gene].append(probe)
                     flat_p = [{'target': gene,
                                'seq': probe} for probe in gene_probes[gene]]
