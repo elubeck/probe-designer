@@ -2,6 +2,9 @@ from __future__ import print_function, division
 import dataset
 from subprocess import call
 from tempfile import NamedTemporaryFile
+from multiprocessing import Pool, cpu_count
+from progressbar import ProgressBar
+from itertools import imap
 import csv
 
 
@@ -65,11 +68,6 @@ def blat_wrapper(d):
         return {}
 
 
-from multiprocessing import Pool, cpu_count
-from progressbar import ProgressBar
-from itertools import imap
-
-
 def blat_pset(p_set, f_name):
     # TODO: ORGANIZE BY CHROMOSOME
     n_genes = len(p_set)
@@ -77,24 +75,9 @@ def blat_pset(p_set, f_name):
     p = Pool(processes=cpu_count())
     with open('temp/{}'.format(f_name), 'wb') as f_out:
         bed = csv.writer(f_out, delimiter='\t')
-        for n, chr_positions in enumerate(imap(blat_wrapper, p_set.items())):
+        for n, chr_positions in enumerate(p.imap(blat_wrapper, p_set.items())):
             for align in chr_positions:
                 bed.writerow([align['tName'], align['tStart'], align['tEnd'],
                               align['strand'],
                               align['target'] + '-' + align['qName']])
             p_bar.update(n)
-
-# #TODO:  Blast all probes and search for off target hits
-# gene = "Pgk1"
-# import dataset
-# intron_db_filtered = dataset.connect(
-#     "sqlite:///db/intron_probes_filtered_10k.db")
-# filtered_probe_table = intron_db_filtered['mouse']
-# passed = [probe['seq'] for probe in filtered_probe_table.find(target=gene)]
-
-# chr = find_chromosome(gene)
-# txStart = find_txStart(gene)
-# chr_positions = blat_probes(passed, chr)
-# iStart = int(txStart)
-# for probe in chr_positions:
-#     print(iStart - int(probe['tStart']))
