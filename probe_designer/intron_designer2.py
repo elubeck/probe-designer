@@ -276,9 +276,10 @@ class ProbeFilter(object):
         return finished_probes
 
     def get_copynum(self, hits):
+        split_hits = [hit.split(',')[0] for hit in hits]
         off_target = {
             name: self.counts[name]
-            for name in hits if name in self.counts.keys()
+            for name in split_hits if name in self.counts.keys()
         }
         false_hits = sum(off_target.values())
         return false_hits
