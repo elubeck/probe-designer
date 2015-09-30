@@ -438,9 +438,7 @@ def design_step(gene, max_time=180, cds_only=False):
                 print("Record lookup fail at {}".format(gene))
                 return ("FAILED", [], [])
             for chunk in gene_records:
-                for probe in sub_seq_splitter(str(chunk), 35,
-                                              gc_min=0.35,
-                                              o_mode=2):
+                for probe in sub_seq_splitter(str(chunk), 35, gc_min=0.35, ):
                     probes.append(probe)
             return gene, probes, gene_records
     except TimeoutError:
