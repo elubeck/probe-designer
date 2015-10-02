@@ -142,10 +142,6 @@ class Designer(object):
         self.probe_size = probe_size
 
 
-# intron_db_filtered = dataset.connect("sqlite:///db/intron_probes_filtered.db.bk")
-# filtered_probe_table = intron_db_filtered['mouse']
-# targets = [row['target'] for row in filtered_probe_table.distinct('target')]
-# passed = [t_name for t_name in targets if len(list(filtered_probe_table.find(target=t_name))) >= 24]
 
 
 def design_introns(reversed=False):
