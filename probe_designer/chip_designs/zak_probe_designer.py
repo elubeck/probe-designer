@@ -5,7 +5,7 @@ import dataset
 import intron_designer2
 from progressbar import ProgressBar
 
-import mRNA_designer
+import probe_designer.mRNA_designer
 
 high_priority = ['Albhk5',
                  'Ash1',
@@ -261,7 +261,7 @@ for gene_d in filtered_probe_table.distinct('target'):
         all_probes[gene] = probes
 
 # Search for redundant nested sequences
-p_set2 = mRNA_designer.probe_set_refiner(all_probes)
+p_set2 = probe_designer.mRNA_designer.probe_set_refiner(all_probes)
 
 p_set2 = {k: v for k, v in p_set2.items() if len(v) >= 24}
 
@@ -326,7 +326,7 @@ filterer = intron_designer2.ProbeFilter()
 
 ######### BLAT ALL PROBES ###############
 import dataset
-import align_probes
+import probe_designer.align_probes
 from progressbar import ProgressBar
 from multiprocessing import Pool, cpu_count
 probe_alignments = dataset.connect("sqlite:///db/mrna_probes_aligned.db")
@@ -339,8 +339,8 @@ def blat_wrapper(d):
         gene = gene[0].upper() + gene[1:]
         if not passed:
             return {}
-        chr = align_probes.find_chromosome(gene)
-        chr_positions = align_probes.blat_probes(passed, chr)
+        chr = probe_designer.align_probes.find_chromosome(gene)
+        chr_positions = probe_designer.align_probes.blat_probes(passed, chr)
         for pos in chr_positions:
             pos.update({'target': gene})
         return chr_positions

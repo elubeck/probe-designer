@@ -11,10 +11,10 @@ from collections import defaultdict
 from itertools import groupby
 import blaster2
 from progressbar import ProgressBar
-import mRNA_designer
+import probe_designer.mRNA_designer
 import csv
 import json
-from get_seq import reverse_complement
+from probe_designer.get_seq import reverse_complement
 from collections import Counter
 
 filterer = intron_designer2.ProbeFilter()
@@ -83,7 +83,7 @@ for gene_d in filtered_probe_table.distinct('target'):
         all_probes[gene] = probes
 
 # Search for redundant nested sequences
-p_set2 = mRNA_designer.probe_set_refiner(all_probes)
+p_set2 = probe_designer.mRNA_designer.probe_set_refiner(all_probes)
 
 # Blast Everything to check that all probes together don't cause big problems
 flat_probes = [
@@ -634,7 +634,7 @@ for file in ['temp/chip_10k_intron.zip', 'temp/chip_10k_intron_ordering.zip']:
 
 ######### BLAT ALL PROBES ###############
 import dataset
-import align_probes
+import probe_designer.align_probes
 from progressbar import ProgressBar
 from multiprocessing import Pool, cpu_count
 intron_db_filtered = dataset.connect(
@@ -647,8 +647,8 @@ def blat_wrapper(d):
         gene, passed = d
         if not passed:
             return {}
-        chr = align_probes.find_chromosome(gene)
-        chr_positions = align_probes.blat_probes(passed, chr)
+        chr = probe_designer.align_probes.find_chromosome(gene)
+        chr_positions = probe_designer.align_probes.blat_probes(passed, chr)
         for pos in chr_positions:
             pos.update({'target': gene})
         return chr_positions
@@ -677,8 +677,8 @@ for n, chr_positions in enumerate(imap(blat_wrapper, passed)):
 for n, target_d in enumerate(filtered_probe_table.distinct('target')):
     gene = target_d['target']
     passed = [probe['seq'] for probe in filtered_probe_table.find(target=gene)]
-    chr = align_probes.find_chromosome(gene)
-    chr_positions = align_probes.blat_probes(passed, chr)
+    chr = probe_designer.align_probes.find_chromosome(gene)
+    chr_positions = probe_designer.align_probes.blat_probes(passed, chr)
     for pos in chr_positions:
         pos.update({'target': gene})
     mouse_alignments.insert_many(chr_positions)

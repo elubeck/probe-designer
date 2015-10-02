@@ -1,4 +1,3 @@
-
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 from builtins import *
@@ -8,11 +7,11 @@ from collections import defaultdict
 from itertools import groupby
 import blaster2
 from progressbar import ProgressBar
-import mRNA_designer
+import probe_designer.mRNA_designer
 import blaster2
 import csv
 import json
-from get_seq import reverse_complement
+from probe_designer.get_seq import reverse_complement
 from collections import Counter
 
 
@@ -42,7 +41,8 @@ primers = [
     ('ATGCGCTGCAACTGAGACCG', 'CTCGACCAAGGCTGGCACAA')
 ]  # yapf: disable
 
-primers = [(f_primer, reverse_complement(r_primer)) for f_primer, r_primer in primers]
+primers = [(f_primer, reverse_complement(r_primer))
+           for f_primer, r_primer in primers]
 
 prime_iter = iter(primers)
 
@@ -77,7 +77,7 @@ from random import shuffle
 shuffle(barcodes)
 brain_barcodes = dict(zip(brain_genes.keys(), barcodes))
 
-brain_primers = [prime_iter.next() for n in range(5)]  
+brain_primers = [prime_iter.next() for n in range(5)]
 brain_probes = []
 for gene, code in brain_barcodes.items():
     for n, digit in enumerate(code):
@@ -94,16 +94,15 @@ for gene, code in brain_barcodes.items():
             }
             brain_probes.append((seq_template.format(**vals),
                                  "{}-{}-{}".format(gene, n + 1, pn)))
-        used_primers.append(((f_primer, r_primer), "Brain hyb {}".format(n + 1)))
+        used_primers.append(
+            ((f_primer, r_primer), "Brain hyb {}".format(n + 1)))
 
 all_probes += brain_probes
-
-
 
 # Write barcodes to file
 with open("temp/barcodes_8-27-15_brain.csv", "wb") as f_out:
     cv = csv.writer(f_out)
-    cv.writerow(['name', 'Hyb1', 'Hyb2', 'Hyb3', 'Hyb4', 'Hyb5',])
+    cv.writerow(['name', 'Hyb1', 'Hyb2', 'Hyb3', 'Hyb4', 'Hyb5', ])
     for name, barcode in brain_barcodes.items():
         cv.writerow([name] + list(barcode))
 
@@ -118,8 +117,6 @@ barcodes = []
 with open("db/barcode_4hyb.csv", "r") as f_in:
     c = csv.reader(f_in)
     barcodes = [[int(element) - 1 for element in line] for line in c]
-
-
 
 from random import sample, shuffle
 zak_picks = {
@@ -136,7 +133,7 @@ remaining_picks = sample(remaining_genes, n_choices)
 shuffle(barcodes)
 zak_barcodes = dict(zip(necessary_genes | set(remaining_picks), barcodes))
 
-zak_primers = [prime_iter.next() for n in range(4)]  
+zak_primers = [prime_iter.next() for n in range(4)]
 zak_probes = []
 for gene, code in zak_barcodes.items():
     for n, digit in enumerate(code):
@@ -157,11 +154,10 @@ for gene, code in zak_barcodes.items():
 
 all_probes += zak_probes
 
-
 # Write barcodes to file
 with open("temp/barcodes_8-27-15_zak.csv", "wb") as f_out:
     cv = csv.writer(f_out)
-    cv.writerow(['name', 'Hyb1', 'Hyb2', 'Hyb3', 'Hyb4',])
+    cv.writerow(['name', 'Hyb1', 'Hyb2', 'Hyb3', 'Hyb4', ])
     for name, barcode in zak_barcodes.items():
         cv.writerow([name] + list(barcode))
 
@@ -178,13 +174,13 @@ for f_primer, group in groupby(oligos, lambda x: x[0].split()[0]):
         for gene, oligos in groupby(group, lambda x: x[1].split('-')[0]):
             if 'Split PGK1' not in gene:
                 ol = list(oligos)
-                bridges = list( {b[0].split()[3] for b in ol} )
-                assert(len(bridges) == 1)
+                bridges = list({b[0].split()[3] for b in ol})
+                assert (len(bridges) == 1)
                 two_thousand_genes[gene] = ol
                 two_thousand_bridges[gene] = reverse_complement(bridges[0])
 
 pgk1_bridges = ['ATTGAGCCAGCAGAAAATGG', 'ATTGAGGGTGTGCTTCGCAC']
-u_bridges = set(list( two_thousand_bridges.values() ) + pgk1_bridges)
+u_bridges = set(list(two_thousand_bridges.values()) + pgk1_bridges)
 
 iter_bridges = (b for b in iter_bridges_old if b not in u_bridges)
 
@@ -195,9 +191,10 @@ tert_seqs = [[iter_bridges.next() for col in range(n_colors)]
 
 with open('temp/quats_8hybs.csv', 'wb') as f_out:
     f_out2 = csv.writer(f_out)
-    f_out2.writerow(['Hyb', 'Color 1', 'Color 2', 'Color 3', 'Color 4', 'Color 5'])
-    for n,hyb in enumerate( tert_seqs ):
-        f_out2.writerow([n+1] + list(map(reverse_complement, hyb)))
+    f_out2.writerow(['Hyb', 'Color 1', 'Color 2', 'Color 3', 'Color 4',
+                     'Color 5'])
+    for n, hyb in enumerate(tert_seqs):
+        f_out2.writerow([n + 1] + list(map(reverse_complement, hyb)))
 
 n_genes = 2000
 n_secondary = 2
@@ -281,7 +278,8 @@ all_probes += branch_tertiaries
 # Write barcodes to file
 with open("temp/barcodes_8-27-15_2kgenes.csv", "wb") as f_out:
     cv = csv.writer(f_out)
-    cv.writerow(['name', '2ndary_bridge', 'Hyb1', 'Hyb2', 'Hyb3', 'Hyb4', 'Hyb5','Hyb6', 'Hyb7', 'Hyb8'])
+    cv.writerow(['name', '2ndary_bridge', 'Hyb1', 'Hyb2', 'Hyb3', 'Hyb4',
+                 'Hyb5', 'Hyb6', 'Hyb7', 'Hyb8'])
     for name, (bridge, barcode) in bc_2k.items():
         cv.writerow([name, bridge] + list(barcode))
 
@@ -358,7 +356,6 @@ pcdha = [u'AATTTGTCTGGCAACTCACCGGGACCGGAC', u'AAAGGTCCAGCTGTTGCTGTTGACACCGGC',
          u'TCCTTTAAAGATTTATAGCTATCGACTTTC', u'TATGCATGAGAAAACAAGATTTTTCTTCAG',
          u'ACTAGGAAAAAAAAAAACCAGCTTTATCCA', u'CAAACATCTAAGTTGTGCACAATAAACTTA',
          u'TCCACATGACGTGTTTTATCCTTACAGCTG']
-
 
 color_1 = pcdha[::3]
 color_2 = pcdha[1::2]
@@ -450,8 +447,10 @@ control_seq = seq_template.format(**{
     'r_primer': reverse_complement('TCCGCAGTCACGAAGATGCC')
 })
 
-used_primers.append((('GACGCACATATGCGGGCAAG','GGCATCTTCGTGACTGCGGA'), "Control"))
+used_primers.append(
+    (('GACGCACATATGCGGGCAAG', 'GGCATCTTCGTGACTGCGGA'), "Control"))
 all_probes += [(control_seq, 'Control-Exclude')]
+
 
 def primer_getter(seq):
     vals = seq[0].split(' ')
@@ -480,7 +479,8 @@ primer_lookup = set(used_primers)
 t7_seq = "TAATACGACTCACTATAGGG"
 with open('temp/primers_8-27-15.csv', 'wb') as f_out:
     cv = csv.writer(f_out)
-    cv.writerow(['Group', 'Name', 'Forward', 'Reverse', 'T7', 'Forward Cutting' 'Reverse Cutting'])
+    cv.writerow(['Group', 'Name', 'Forward', 'Reverse', 'T7', 'Forward Cutting'
+                 'Reverse Cutting'])
     for group, primer_pairs in groupby(sorted(primer_lookup,
                                               key=sort_key), sort_key):
         for (f_primer, r_primer_rc), name in primer_pairs:
@@ -488,26 +488,27 @@ with open('temp/primers_8-27-15.csv', 'wb') as f_out:
             t7_primer = t7_seq + r_primer
             f_cutting_seq = 'AGTACTTAG'  # ScaI +TAG
             r_cutting_seq = 'GATGAATTC'  # GAT + EcoRI
-            forward_cutting = f_primer + f_cutting_seq 
+            forward_cutting = f_primer + f_cutting_seq
             reverse_cutting = r_primer + reverse_complement(r_cutting_seq)
             if group in cut_groups:
-                cv.writerow([group, name, f_primer, r_primer,
-                             t7_primer, forward_cutting, reverse_cutting])
+                cv.writerow([group, name, f_primer, r_primer, t7_primer,
+                             forward_cutting, reverse_cutting])
             else:
                 cv.writerow([group, name, f_primer, r_primer, t7_primer])
 
-assert(len(all_probes) <= 92918)
+assert (len(all_probes) <= 92918)
+
 
 def primer_getter(seq):
     vals = seq[0].split(' ')
     return (vals[0], vals[-1])
 
+
 discovered_primers = []
-for primers, probe in groupby(sorted(all_probes), primer_getter ):
+for primers, probe in groupby(sorted(all_probes), primer_getter):
     discovered_primers.append(primers)
 discovered_primers = set(discovered_primers)
 existing_primers = {p for p, n in set(used_primers)}
-
 
 with open('temp/8-27-15.csv', 'wb') as f_out:
     f_out2 = csv.writer(f_out)
@@ -524,15 +525,18 @@ for file in ['temp/8-27-15.zip', 'temp/8-27-15_ordering.zip']:
             cv = csv.writer(f_temp)
             if 'ordering' in file:
                 t_chip = [(''.join(seq.split(' ')), namel)
-                            for seq, namel in all_probes]
+                          for seq, namel in all_probes]
                 cv.writerows(t_chip)
             else:
                 cv.writerows(all_probes)
             f_temp.flush()
             archive.write(f_temp.name, arcname='oligos' + '.csv')
-        archive.write("temp/barcodes_8-27-15_brain.csv", arcname='brain_barcodes.csv')
-        archive.write("temp/barcodes_8-27-15_zak.csv", arcname='zak_barcodes.csv')
+        archive.write("temp/barcodes_8-27-15_brain.csv",
+                      arcname='brain_barcodes.csv')
+        archive.write("temp/barcodes_8-27-15_zak.csv",
+                      arcname='zak_barcodes.csv')
         archive.write('temp/quats_8hybs.csv', arcname='quats_8hybs.csv')
-        archive.write('temp/tertiaries_2k_genes.csv', arcname='tertiaries_2k_genes.csv')
+        archive.write('temp/tertiaries_2k_genes.csv',
+                      arcname='tertiaries_2k_genes.csv')
         archive.write('temp/quats_8hybs.csv', arcname='quats_8hybs.csv')
         archive.write('temp/primers_8-27-15.csv', arcname='primers.csv')

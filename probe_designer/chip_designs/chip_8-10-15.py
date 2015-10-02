@@ -5,33 +5,21 @@ import dataset
 from progressbar import ProgressBar
 from intron_designer2 import ProbeFilter
 
-import mRNA_designer
+import probe_designer.mRNA_designer
 import csv
 
-# Get all genes
-# db = dataset.connect("sqlite:///db/refGene.db")
-# mouse = db['mouse']
-# genes = {gene['name2'] for gene in mouse.distinct('name2')}
-
-genes = ['Pde1a', 'Adgrl2', 'Kcnip2', 'Rgs10', 'Nov', 'Cpne5', 'Slc5a7', 'Crh',
-         'Pax6', 'Gda', 'Sema3e', 'Gfap', 'Mfge8', 'Gja1', 'Slco1c1', 'Hexb',
-         'Mrc1', 'Lyve1', 'Lyz2', 'Itpr2', 'Rhob', 'Omg', 'Klk6', 'Cldn5',
-         'Acta2', 'Sox2', 'Pax6', 'Dcx', 'Th', 'Nes', 'Tbr1', 'Wfs1', 'Dcn',
-         'Htr2c', 'Grp', 'Gpr101', 'Col5a1', 'Gpc3', 'Prss12', 'Ndst4',
-         'Calb1', 'Matn2', 'Rph3a', 'Loxl1', 'Plagl1', 'Coch', 'Itga7', 'Lyd',
-         'Amigo2']
-
-c_genes = ['Pde1a', 'Adgrl2', 'Kcnip2', 'Rgs10', 'Nov', 'Cpne5', 'Slc5a7',
-           'Crh', 'Pax6', 'Gda', 'Sema3e', 'Gfap', 'Mfge8', 'Gja1', 'Slco1c1',
-           'Hexb', 'Mrc1', 'Lyve1', 'Lyz2', 'Itpr2', 'Rhob', 'Omg', 'Klk6',
-           'Cldn5', 'Acta2', 'Sox2', 'Pax6', 'Dcx', 'Th', 'Nes', 'Tbr1',
-           'Loxl1', 'Calb1', 'Col5a1', 'Lyd', 'Amigo2']
+####### Brain Genes
+gene_list = []
+with open("temp/tf_midbrain.txt", 'rU') as fin:
+    for line in csv.reader(fin):
+        gene_list.append(''.join(line))
+gene_list = set(gene_list)
 
 dbs = ["brain_mrna_probes_cds_only", "brain_mrna_probes_full_tx"]
 cds_only = [True, False]
 for db, cds_only in zip(dbs, cds_only):
     # Design All Genes
-    gene_lookup = mRNA_designer.batch_design2(genes,
+    gene_lookup = probe_designer.mRNA_designer.batch_design2(gene_list,
                                               cds_only=cds_only,
                                               db_name=db)
 
@@ -45,10 +33,10 @@ def filter_wrapper(gene):
     if len(res) > 24:
         iters = 0
         f_probes = []
-        while iters < 30:
+        while iters < 5:
             max_off = 1 + iters * 2000
             f_probes = probe_filterer.run(res, gene,
-                                          n_probes=24,
+                                          n_probes=48,
                                           max_off_target=max_off)
             if len(f_probes) >= 24: break
             iters += 1
@@ -60,6 +48,7 @@ print("FILTERING")
 flat_probes = []
 all_probes = {}
 for db in dbs:
+    print(db)
     db_name = "sqlite:///db/{}_filtered.db".format(db)
     probe_db_filtered = dataset.connect(db_name)
     filtered_probe_table = probe_db_filtered['mouse']
@@ -67,7 +56,7 @@ for db in dbs:
     intron_db = dataset.connect(db_loc)
     probes = intron_db['unfiltered_probes']
     genes = [g['target'] for g in probes.distinct('target')
-             if g['target'] in genes]
+             if g['target'] in gene_list]
     used_probes = {
         p['target']
         for p in filtered_probe_table.distinct('target')
@@ -75,9 +64,8 @@ for db in dbs:
     remaining_genes = set(genes).difference(used_probes)
     p_bar = ProgressBar(maxval=len(remaining_genes))
     from multiprocessing import Pool, cpu_count
-    from itertools import imap
-    # p = Pool(processes=cpu_count())
-    for n, f_probes in enumerate(imap(filter_wrapper, remaining_genes)):
+    p = Pool(processes=cpu_count())
+    for n, f_probes in enumerate(p.imap(filter_wrapper, remaining_genes)):
         if any(f_probes):
             filtered_probe_table.insert_many(f_probes)
             flat_probes.append(f_probes)
@@ -88,16 +76,15 @@ for db in dbs:
     tall_probes = dict()
     for gene_d in filtered_probe_table.distinct('target'):
         gene = gene_d['target']
-        if gene in genes:
-            probes = list(
-                {p['seq']
-                 for p in filtered_probe_table.find(target=gene)})
-            if len(probes) >= 24:
-                tall_probes[gene] = probes
+        probes = list(
+            {p['seq']
+             for p in filtered_probe_table.find(target=gene)})
+        if len(probes) >= 24:
+            tall_probes[gene] = probes
     all_probes[db] = tall_probes
 
+##### Pick between CDS or full tx
 from itertools import groupby
-from multiprocessing import Pool
 p = [(k, v, db_n)
      for db_n, db in all_probes.iteritems() for k, v in db.iteritems()]
 
@@ -113,7 +100,7 @@ for gene, vals in groupby(sorted(p), lambda x: x[0]):
             all_p2[gene] = max(p_dict.values(), key=lambda x: len(x))
 
 # Search for redundant nested sequences
-p_set2 = mRNA_designer.probe_set_refiner(all_p2)
+p_set2 = probe_designer.mRNA_designer.probe_set_refiner(all_p2)
 
 p_set2 = {k: v for k, v in p_set2.items() if len(v) >= 24}
 
@@ -174,77 +161,29 @@ grouped_probes = [(group, list(probes))
                                                key=lambda x: x['gene'])]
 passed = {g for g, probes in grouped_probes if len(probes) >= 24}
 grouped_probes2 = [(g, p) for g, p in grouped_probes if g in passed]
-
-# CHANGED TO p_set22 from p_set2
-p_set22 = {g: {p['seq'] for p in probes} for g, probes in grouped_probes2}
+p_set2 = {g: {p['seq'] for p in probes} for g, probes in grouped_probes2}
 
 n_oligos = len([g for k, v in p_set2.items() for g in v])
 
-#TEMP CODE, DELETE BLOCK
-
-
-def reverse_complement(seq):
-    complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
-    return "".join(complement[c] for c in seq.upper())[::-1]
-
-
-from random import sample
-import csv
-sub_set = {
-    k: sample(probes, 24)
-    for k, probes in p_set2.iteritems() if k in c_genes
-}
-
-used_bridges = []
-with open('temp/9-14-15/barcode_c_primers.csv', 'r') as f_in:
-    for n, line in enumerate(csv.reader(f_in)):
-        if n == 0: continue
-        used_bridges.append(line[1])
-used_bridges += [reverse_complement(bridge) for bridge in used_bridges]
-
-with open('temp/validated_bridges-1k_old.txt', 'r') as f_in:
-    bridges = [line.strip('\n') for line in f_in]
-
-available_bridges = set(bridges).difference(used_bridges)
-to_use = sample(available_bridges, len(sub_set))
-
-gene_bridge = {}
-with open("temp/brain_probes_9-27-15.csv", "wb") as f_out:
+with open("temp/brain_mrna_9-14-15.csv", "wb") as f_out:
     c = csv.writer(f_out)
-    for bridge, (gene, probes) in zip(to_use, sub_set.items()):
-        gene_bridge[gene] = bridge
-        for n, probe in enumerate(sample(probes, 24)):
-            c.writerow([gene, n, "{} TATA {}".format(
-                reverse_complement(bridge), probe)])
-
-from itertools import product
-barcodes = list(product(range(5), range(5)))
-gene_barcodes = dict(zip(gene_bridge.keys(), barcodes))
-
-initiators = ["gCATTCTTTCTTgAggAgggCAgCAAACgggAAgAg",
-              "AgCTCAgTCCATCCTCgTAAATCCTCATCAATCATC",
-              "AAAgTCTAATCCgTCCCTgCCTCTATATCTCCACTC",
-              "CACATTTACAgACCTCAACCTACCTCCAACTCTCAC",
-              "CACTTCATATCACTCACTCCCAATCTCTATCTACCC"]
-
-bridge_template = "{} TATA {}"
-
-with open("temp/brain_barcodes_9-27-15.csv", 'wb') as f_out:
-    fo = csv.writer(f_out)
-    fo.writerow(['Gene', 'Hyb 1', 'Hyb 2'])
-    for bridge, barcode in gene_barcodes.iteritems():
-        fo.writerow([bridge, barcode[0], barcode[1]])
-
-with open("temp/brain_bridge_9-27-15.csv", "wb") as f_out:
-    c = csv.writer(f_out)
-    for gene, bridge in gene_bridge.items():
-        for n, init_n in enumerate(gene_barcodes[gene]):
-            c.writerow(["{}-{}".format(gene, n + 1),
-                        "{} TATA {}".format(initiators[init_n], bridge)])
-
-#TEMP CODE, DELETE BLOCK
+    for gene, probes in p_set2.items():
+        for n, probe in enumerate(probes):
+            c.writerow([gene, n, probe])
 
 ######### BLAT ALL PROBES ###############
 
-import align_probes
-align_probes.blat_pset(p_set2, 'brain_8-18-15_5.bed')
+from collections import defaultdict
+import csv
+try:
+    isinstance(p_set2, dict)
+except:
+    p_set2 = defaultdict(list)
+    with open("temp/brain_8-24-15.csv", "r") as f_out:
+        c = csv.reader(f_out)
+        for line in c:
+            gene, n, probe = line
+            p_set2[gene].append(probe)
+
+import probe_designer.align_probes
+probe_designer.align_probes.blat_pset(p_set2, 'brain_8-18-15_5.bed')

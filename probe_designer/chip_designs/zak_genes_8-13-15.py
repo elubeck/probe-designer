@@ -5,9 +5,9 @@ from builtins import *
 import dataset
 from progressbar import ProgressBar
 from intron_designer2 import ProbeFilter
-import align_probes
+import probe_designer.align_probes
 
-import mRNA_designer
+import probe_designer.mRNA_designer
 
 high_priority = ['Alkbh5',
                  'Ash1l',
@@ -220,7 +220,7 @@ dbs = ['es_mrna_probe_cds_only', 'es_mrna_probe_full_tx']
 cds_only = [True, False]
 for db, cds_only in zip(, cds_only):
     # Design All Genes
-    gene_lookup = mRNA_designer.batch_design2(gene_list,
+    gene_lookup = probe_designer.mRNA_designer.batch_design2(gene_list,
                                               cds_only=cds_only,
                                               db_name=db)
 
@@ -317,7 +317,7 @@ print(len(all_p2))
 #             all_p2[gene] = max(p_dict.values(), key=lambda x: len(x))
 
 # Search for redundant nested sequences
-p_set2 = mRNA_designer.probe_set_refiner(all_p2)
+p_set2 = probe_designer.mRNA_designer.probe_set_refiner(all_p2)
 
 p_set2 = {k: v for k, v in p_set2.items() if len(v) >= 24}
 
@@ -408,5 +408,5 @@ import csv
     #         gene, n, probe = line
     #         p_set2[gene].append(probe)
 
-import align_probes
-align_probes.blat_pset(p_set2, 'zak_8-18-15_91.bed')
+import probe_designer.align_probes
+probe_designer.align_probes.blat_pset(p_set2, 'zak_8-18-15_91.bed')
