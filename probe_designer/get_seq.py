@@ -1,6 +1,5 @@
 from __future__ import division, print_function, with_statement
 
-import os
 import re
 import time
 from collections import defaultdict
@@ -13,15 +12,10 @@ import dataset
 import numpy as np
 from Bio import AlignIO, Entrez, SeqIO
 from Bio.Align.Applications import ClustalOmegaCommandline, MuscleCommandline
-from Bio.Application import ApplicationError
-from future.builtins import map, object, range, str
+
+from future.builtins import map, object, str
 
 Entrez.email = 'elubeck@caltech.edu'
-
-
-def reverse_complement(seq):
-    complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
-    return "".join(complement[c] for c in seq.upper())[::-1]
 
 
 class CDSError(Exception):

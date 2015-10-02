@@ -14,3 +14,8 @@ def gc_count(probe):
 def n_probes(chunk_list, probe_size=35):
     # Get # of probes that could be made from set of gene chunks
     return sum(len(chunk) // probe_size for chunk in chunk_list)
+
+
+def reverse_complement(seq):
+    complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
+    return "".join(complement[c] for c in seq.upper())[::-1]

@@ -103,8 +103,10 @@ import random
 #     # fwriter.writerows(seq.values() for seq in random.sample(list(groupby(refined, lambda x: x['target'])), 100))
 
 ############### INTRONS ###################
-from probe_designer.get_seq import reverse_complement
+from probe_designer.utils.misc import reverse_complement
 import dataset
+import probe_designer.utils.misc
+
 with open("/home/eric/tflistall.txt", "r") as fin:
     tfs = [line.strip('\r\n').lower() for line in fin]
 
@@ -192,7 +194,7 @@ primers = [['ACAGTGGAACGCGCCATGAG', 'CGCTTGTTGGCTGGTATGCG'], [
                                          'CCGGCCTGAAAAACGTAGCG']]
 
 import probe_designer.get_seq
-p2 = [(forward, probe_designer.get_seq.reverse_complement(reverse))
+p2 = [(forward, probe_designer.utils.misc.reverse_complement(reverse))
       for forward, reverse in primers]
 random.shuffle(intron_probes2)
 final_intron = []

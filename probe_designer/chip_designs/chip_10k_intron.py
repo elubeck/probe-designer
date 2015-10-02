@@ -15,7 +15,7 @@ import probe_designer.mRNA_designer
 import probe_designer.blaster
 import csv
 import json
-from probe_designer.get_seq import reverse_complement
+from probe_designer.utils.misc import reverse_complement
 from collections import Counter
 
 filterer = probe_designer.intron_designer.ProbeFilter()
