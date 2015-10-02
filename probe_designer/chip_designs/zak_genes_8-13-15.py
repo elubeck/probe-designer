@@ -4,7 +4,7 @@ from __future__ import (absolute_import, division, print_function,
 from builtins import *
 import dataset
 from progressbar import ProgressBar
-from intron_designer2 import ProbeFilter
+from probe_designer.intron_designer import ProbeFilter
 import probe_designer.align_probes
 
 import probe_designer.mRNA_designer
