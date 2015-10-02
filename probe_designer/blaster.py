@@ -15,6 +15,7 @@ from Bio.Blast import NCBIWWW, NCBIXML
 from Bio.Blast.Applications import NcbiblastnCommandline as blastn
 from future.builtins import object
 from tempfile import NamedTemporaryFile
+from utils.misc import gc_count
 
 # Get merged embryonic 11.5 encode data
 with open('db/encode_counts.csv', 'r') as f:
@@ -90,8 +91,6 @@ def get_copynum(hits):
     return false_hits
 
 
-def gc_count(probe):
-    return len([1 for c in probe.lower() if c in ['c', 'g']]) / len(probe)
 
 
 def filter_probes(probe_table, off_target_thresh=7, min_probes=24):

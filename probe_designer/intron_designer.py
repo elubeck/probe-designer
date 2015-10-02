@@ -16,12 +16,10 @@ from Bio.SeqRecord import SeqRecord
 from pathlib import Path
 
 from oligoarray_designer import OligoarrayDesigner
+from utils.misc import  gc_count, n_probes
 
 csv.field_size_limit(sys.maxsize)  # Prevent field size overflow.
 
-
-def gc_count(probe):
-    return len([1 for c in probe.lower() if c in ['c', 'g']]) / len(probe)
 
 
 class IntronRetriever(object):
@@ -79,10 +77,6 @@ class IntronRetriever(object):
         self.tot_introns = self.intron_getter.tot_records - len(skip_probes)
         self.reversed = reversed
 
-
-def n_probes(chunk_list, probe_size=35):
-    # Get # of probes that could be made from set of gene chunks
-    return sum(len(chunk) // probe_size for chunk in chunk_list)
 
 
 class Designer(object):
