@@ -20,7 +20,7 @@ from operator import itemgetter
 from pathlib import Path
 from progressbar import ProgressBar
 
-import blaster2
+import blaster
 import get_seq
 from oligoarray_designer import OligoarrayDesigner
 
@@ -150,8 +150,8 @@ def filter_probes_by_blast(probes):
     # fasta_str = "\n".join(">{}\n{}".format(k, v) for k,v in probe_lookup.iteritems())
 
     strand = 1
-    res = blaster2.local_blast_query(fasta_str, db='gencode_tracks_reversed')
-    hits = blaster2.parse_hits(res, strand=strand, match_thresh=18)
+    res = blaster.local_blast_query(fasta_str, db='gencode_tracks_reversed')
+    hits = blaster.parse_hits(res, strand=strand, match_thresh=18)
 
     import pdb
     pdb.set_trace()
@@ -166,7 +166,7 @@ def filter_probes_by_blast(probes):
             # raise Exception("Query not found in hits")
         del gencode_id[refseq.index(gene_name)]
         try:
-            hit_vals.append((probe_name, blaster2.get_copynum(gencode_id)))
+            hit_vals.append((probe_name, blaster.get_copynum(gencode_id)))
         except:
             print("Failed @ {}".format(gencode_id))
     hit_vals = sorted(hit_vals, key=lambda x: x[1], reverse=True)

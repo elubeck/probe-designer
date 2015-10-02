@@ -11,7 +11,7 @@ import dataset
 from Bio import SeqIO
 from tempfile import NamedTemporaryFile
 from progressbar import ProgressBar
-import blaster2
+import blaster
 from Bio.SeqRecord import SeqRecord
 from pathlib import Path
 
@@ -249,8 +249,8 @@ class ProbeFilter(object):
             strand = self.strand
         fasta_str = "\n".join(">{}\n{}".format(*items)
                               for items in probe_lookup.iteritems())
-        res = blaster2.local_blast_query(fasta_str, db=db)
-        hits = blaster2.parse_hits(res,
+        res = blaster.local_blast_query(fasta_str, db=db)
+        hits = blaster.parse_hits(res,
                                    strand=strand,
                                    match_thresh=match_thresh)
         return hits

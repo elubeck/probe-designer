@@ -9,10 +9,10 @@ import dataset
 import probe_designer.intron_designer2
 from collections import defaultdict
 from itertools import groupby
-import probe_designer.blaster2
+import probe_designer.blaster
 from progressbar import ProgressBar
 import probe_designer.mRNA_designer
-import probe_designer.blaster2
+import probe_designer.blaster
 import csv
 import json
 from probe_designer.get_seq import reverse_complement

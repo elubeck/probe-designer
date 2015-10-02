@@ -9,10 +9,10 @@ import dataset
 import probe_designer.intron_designer2
 from collections import defaultdict
 from itertools import groupby
-import probe_designer.blaster2
+import probe_designer.blaster
 from progressbar import ProgressBar
 import probe_designer.mRNA_designer
-import probe_designer.blaster2
+import probe_designer.blaster
 import csv
 import json
 from probe_designer.get_seq import reverse_complement
@@ -27,9 +27,9 @@ with open("db/adapter10k.csv", "r") as f_in:
 
 fasta_adapter = "\n".join(">{}\n{}".format(n, probe)
                           for n, probe in enumerate(adapters))
-blast_hits_adapter = probe_designer.blaster2.local_blast_query(fasta_adapter,
+blast_hits_adapter = probe_designer.blaster.local_blast_query(fasta_adapter,
                                                 db='gencode_tracks_reversed')
-blast_res_adapter = probe_designer.blaster2.parse_hits(blast_hits_adapter,
+blast_res_adapter = probe_designer.blaster.parse_hits(blast_hits_adapter,
                                         match_thresh=10,
                                         strand=1)
 off_target = {
