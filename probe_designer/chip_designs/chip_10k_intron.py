@@ -5,19 +5,21 @@ All subsequent steps are documented in this file.
 """
 
 from __future__ import print_function, division
-import dataset
-import probe_designer.intron_designer
 from collections import defaultdict
 from itertools import groupby
+import csv
+import json
+from collections import Counter
+
+import dataset
+
+import probe_designer.intron_designer
 import probe_designer.blaster
 from progressbar import ProgressBar
 import probe_designer.mRNA_designer
 import probe_designer.blaster
-import csv
-import json
 import probe_designer.probe_refiner
 from probe_designer.utils.misc import reverse_complement
-from collections import Counter
 
 filterer = probe_designer.probe_refiner.ProbeFilter()
 ###### Blast Adapters ###########
@@ -448,7 +450,6 @@ chip_primers.append(
     (chip_2[-1][0].split(' ')[0], chip_2[-1][0].split(' ')[-1]))
 
 # Get Ahmet's Probes
-import random
 ahmet_primers = ['TGCAGCTCCGCGAAATGAAG',
                  reverse_complement('AATGGCACAGACAGGCAGCG')]
 ahmet_probes = []
@@ -626,7 +627,7 @@ for file in ['temp/chip_10k_intron.zip', 'temp/chip_10k_intron_ordering.zip']:
             archive.write(f_temp.name, arcname='zak_bridges.csv')
 
 ######### BLAT ALL PROBES ###############
-import probe_designer.align_probes
+import probe_designer.utils.align_probes
 intron_db_filtered = dataset.connect(
     "sqlite:///db/intron_probes_filtered_10k.db")
 filtered_probe_table = intron_db_filtered['mouse']
@@ -638,8 +639,8 @@ p_bar = ProgressBar(maxval=n_genes)
 for n, target_d in enumerate(filtered_probe_table.distinct('target')):
     gene = target_d['target']
     passed = [probe['seq'] for probe in filtered_probe_table.find(target=gene)]
-    chr = probe_designer.align_probes.find_chromosome(gene)
-    chr_positions = probe_designer.align_probes.blat_probes(passed, chr)
+    chr = probe_designer.utils.align_probes.find_chromosome(gene)
+    chr_positions = probe_designer.utils.align_probes.blat_probes(passed, chr)
     for pos in chr_positions:
         pos.update({'target': gene})
     mouse_alignments.insert_many(chr_positions)

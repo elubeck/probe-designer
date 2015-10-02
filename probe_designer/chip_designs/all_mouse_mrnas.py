@@ -1,12 +1,13 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 from builtins import *
+
 import dataset
+
 from progressbar import ProgressBar
 from intron_designer2 import ProbeFilter
-
 import probe_designer.mRNA_designer
-import csv
+
 
 # Get all genes
 # db = dataset.connect("sqlite:///db/refGene.db")
@@ -75,7 +76,6 @@ for db in dbs:
     }
     remaining_genes = set(genes).difference(used_probes)
     p_bar = ProgressBar(maxval=len(remaining_genes))
-    from multiprocessing import Pool, cpu_count
     from itertools import imap
     # p = Pool(processes=cpu_count())
     for n, f_probes in enumerate(imap(filter_wrapper, remaining_genes)):
@@ -98,7 +98,7 @@ for db in dbs:
     all_probes[db] = tall_probes
 
 from itertools import groupby
-from multiprocessing import Pool
+
 p = [(k, v, db_n)
      for db_n, db in all_probes.iteritems() for k, v in db.iteritems()]
 
@@ -247,5 +247,5 @@ with open("temp/brain_bridge_9-27-15.csv", "wb") as f_out:
 
 ######### BLAT ALL PROBES ###############
 
-import probe_designer.align_probes
-probe_designer.align_probes.blat_pset(p_set2, 'brain_8-18-15_5.bed')
+import probe_designer.utils.align_probes
+probe_designer.utils.align_probes.blat_pset(p_set2, 'brain_8-18-15_5.bed')

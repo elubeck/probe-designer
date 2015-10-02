@@ -1,10 +1,11 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 from builtins import *
+
 import dataset
+
 import intron_designer2
 from progressbar import ProgressBar
-
 import probe_designer.mRNA_designer
 import probe_designer.probe_refiner
 
@@ -327,7 +328,7 @@ filterer = intron_designer2.ProbeFilter()
 
 ######### BLAT ALL PROBES ###############
 import dataset
-import probe_designer.align_probes
+import probe_designer.utils.align_probes
 from progressbar import ProgressBar
 from multiprocessing import Pool, cpu_count
 probe_alignments = dataset.connect("sqlite:///db/mrna_probes_aligned.db")
@@ -340,8 +341,8 @@ def blat_wrapper(d):
         gene = gene[0].upper() + gene[1:]
         if not passed:
             return {}
-        chr = probe_designer.align_probes.find_chromosome(gene)
-        chr_positions = probe_designer.align_probes.blat_probes(passed, chr)
+        chr = probe_designer.utils.align_probes.find_chromosome(gene)
+        chr_positions = probe_designer.utils.align_probes.blat_probes(passed, chr)
         for pos in chr_positions:
             pos.update({'target': gene})
         return chr_positions

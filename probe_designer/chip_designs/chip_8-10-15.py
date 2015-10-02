@@ -1,12 +1,14 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 from builtins import *
+import csv
+
 import dataset
+
 from progressbar import ProgressBar
 from intron_designer2 import ProbeFilter
-
 import probe_designer.mRNA_designer
-import csv
+
 
 ####### Brain Genes
 import probe_designer.probe_refiner
@@ -187,5 +189,5 @@ except:
             gene, n, probe = line
             p_set2[gene].append(probe)
 
-import probe_designer.align_probes
-probe_designer.align_probes.blat_pset(p_set2, 'brain_8-18-15_5.bed')
+import probe_designer.utils.align_probes
+probe_designer.utils.align_probes.blat_pset(p_set2, 'brain_8-18-15_5.bed')

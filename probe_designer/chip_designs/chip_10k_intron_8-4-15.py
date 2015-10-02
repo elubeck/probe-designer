@@ -5,17 +5,19 @@ All subsequent steps are documented in this file.
 """
 
 from __future__ import print_function, division
-import dataset
-import intron_designer2
 from collections import defaultdict
 from itertools import groupby
+import csv
+import json
+from collections import Counter
+
+import dataset
+
+import intron_designer2
 import blaster2
 from progressbar import ProgressBar
 import probe_designer.mRNA_designer
-import csv
-import json
 from probe_designer.utils.misc import reverse_complement
-from collections import Counter
 import probe_designer.probe_refiner
 
 filterer = intron_designer2.ProbeFilter()
@@ -456,7 +458,6 @@ chip_primers.append(
     (chip_2[-1][0].split(' ')[0], chip_2[-1][0].split(' ')[-1]))
 
 # Get Ahmet's Probes
-import random
 ahmet_primers = ['TGCAGCTCCGCGAAATGAAG',
                  reverse_complement('AATGGCACAGACAGGCAGCG')]
 ahmet_probes = []
@@ -635,7 +636,7 @@ for file in ['temp/chip_10k_intron.zip', 'temp/chip_10k_intron_ordering.zip']:
 
 ######### BLAT ALL PROBES ###############
 import dataset
-import probe_designer.align_probes
+import probe_designer.utils.align_probes
 from progressbar import ProgressBar
 from multiprocessing import Pool, cpu_count
 intron_db_filtered = dataset.connect(
@@ -648,8 +649,8 @@ def blat_wrapper(d):
         gene, passed = d
         if not passed:
             return {}
-        chr = probe_designer.align_probes.find_chromosome(gene)
-        chr_positions = probe_designer.align_probes.blat_probes(passed, chr)
+        chr = probe_designer.utils.align_probes.find_chromosome(gene)
+        chr_positions = probe_designer.utils.align_probes.blat_probes(passed, chr)
         for pos in chr_positions:
             pos.update({'target': gene})
         return chr_positions
@@ -678,8 +679,8 @@ for n, chr_positions in enumerate(imap(blat_wrapper, passed)):
 for n, target_d in enumerate(filtered_probe_table.distinct('target')):
     gene = target_d['target']
     passed = [probe['seq'] for probe in filtered_probe_table.find(target=gene)]
-    chr = probe_designer.align_probes.find_chromosome(gene)
-    chr_positions = probe_designer.align_probes.blat_probes(passed, chr)
+    chr = probe_designer.utils.align_probes.find_chromosome(gene)
+    chr_positions = probe_designer.utils.align_probes.blat_probes(passed, chr)
     for pos in chr_positions:
         pos.update({'target': gene})
     mouse_alignments.insert_many(chr_positions)

@@ -2,11 +2,12 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 from builtins import *
+
 import dataset
+
 from progressbar import ProgressBar
 from probe_designer.intron_designer import ProbeFilter
-import probe_designer.align_probes
-
+import probe_designer.utils.align_probes
 import probe_designer.mRNA_designer
 import probe_designer.probe_refiner
 
@@ -397,8 +398,6 @@ with open("temp/zak_8-24-15.csv", "wb") as f_out:
 
 ######### BLAT ALL PROBES ###############
 
-from collections import defaultdict
-import csv
 # try:
 #     isinstance(p_set2, dict)
 # except:
@@ -409,5 +408,5 @@ import csv
     #         gene, n, probe = line
     #         p_set2[gene].append(probe)
 
-import probe_designer.align_probes
-probe_designer.align_probes.blat_pset(p_set2, 'zak_8-18-15_91.bed')
+import probe_designer.utils.align_probes
+probe_designer.utils.align_probes.blat_pset(p_set2, 'zak_8-18-15_91.bed')
