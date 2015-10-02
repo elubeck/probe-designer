@@ -15,16 +15,17 @@ import probe_designer.mRNA_designer
 import probe_designer.blaster
 import csv
 import json
+import probe_designer.probe_refiner
 from probe_designer.utils.misc import reverse_complement
 from collections import Counter
 
-filterer = probe_designer.intron_designer.ProbeFilter()
+filterer = probe_designer.probe_refiner.ProbeFilter()
 
 ####### Filter Probes  #############
 dbs = ["sqlite:///db/intron_probes_10k_2.db"]
 
 # Open Filtered Probe Database
-filterer = probe_designer.intron_designer.ProbeFilter()
+filterer = probe_designer.probe_refiner.ProbeFilter()
 intron_db_filtered = dataset.connect(
     "sqlite:///db/intron_probes_filtered_10k_2.db")
 filtered_probe_table = intron_db_filtered['mouse']

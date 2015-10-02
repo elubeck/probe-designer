@@ -103,6 +103,7 @@ import random
 #     # fwriter.writerows(seq.values() for seq in random.sample(list(groupby(refined, lambda x: x['target'])), 100))
 
 ############### INTRONS ###################
+import probe_designer.probe_refiner
 from probe_designer.utils.misc import reverse_complement
 import dataset
 import probe_designer.utils.misc
@@ -142,7 +143,7 @@ import random
 from progressbar import ProgressBar
 import probe_designer.mRNA_designer
 
-p_set2 = probe_designer.mRNA_designer.probe_set_refiner(all_probes)
+p_set2 = probe_designer.probe_refiner.probe_set_refiner(all_probes)
 
 # Rock1 is short
 p_keys = set(p_set2.keys()) - {'Rock1'}
@@ -151,7 +152,7 @@ f_probes = {
     for n, k in enumerate(random.sample(p_keys, 1000))
 }
 
-probe_filterer_intron = id2.ProbeFilter()
+probe_filterer_intron = probe_designer.probe_refiner.ProbeFilter()
 intron_probes2 = []
 p_bar = ProgressBar(maxval=1000).start()
 # # used_probes = {s['target'] for probe in intron_probes for s in probe}

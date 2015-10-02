@@ -15,10 +15,11 @@ import probe_designer.mRNA_designer
 import probe_designer.blaster
 import csv
 import json
+import probe_designer.probe_refiner
 from probe_designer.utils.misc import reverse_complement
 from collections import Counter
 
-filterer = probe_designer.intron_designer.ProbeFilter()
+filterer = probe_designer.probe_refiner.ProbeFilter()
 ###### Blast Adapters ###########
 adapters = []
 with open("db/adapter10k.csv", "r") as f_in:
@@ -39,7 +40,7 @@ off_target = {
 
 ####### Filter New and old Probes  #############
 dbs = ["sqlite:///db/intron_probes3.db", "sqlite:///db/intron_probes2.db.bk"]
-filterer = probe_designer.intron_designer.ProbeFilter()
+filterer = probe_designer.probe_refiner.ProbeFilter()
 intron_db_filtered = dataset.connect(
     "sqlite:///db/intron_probes_filtered_10k.db")
 filtered_probe_table = intron_db_filtered['mouse']
@@ -75,7 +76,7 @@ for gene_d in filtered_probe_table.distinct('target'):
         all_probes[gene] = probes
 
 # Search for redundant nested sequences
-p_set2 = probe_designer.mRNA_designer.probe_set_refiner(all_probes)
+p_set2 = probe_designer.probe_refiner.probe_set_refiner(all_probes)
 
 # Blast Everything to check that all probes together don't cause big problems
 flat_probes = [

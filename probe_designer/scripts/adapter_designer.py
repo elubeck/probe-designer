@@ -1,6 +1,6 @@
 from __future__ import print_function, division, unicode_literals
 import csv
-from probe_designer.intron_designer import ProbeFilter
+from probe_designer.probe_refiner import ProbeFilter
 
 pf = ProbeFilter()
 with open('/home/eric/20mer_adaptors.csv', 'rU') as fin:

@@ -12,6 +12,7 @@ import csv
 # db = dataset.connect("sqlite:///db/refGene.db")
 # mouse = db['mouse']
 # genes = {gene['name2'] for gene in mouse.distinct('name2')}
+import probe_designer.probe_refiner
 
 genes = ['Pde1a', 'Adgrl2', 'Kcnip2', 'Rgs10', 'Nov', 'Cpne5', 'Slc5a7', 'Crh',
          'Pax6', 'Gda', 'Sema3e', 'Gfap', 'Mfge8', 'Gja1', 'Slco1c1', 'Hexb',
@@ -113,7 +114,7 @@ for gene, vals in groupby(sorted(p), lambda x: x[0]):
             all_p2[gene] = max(p_dict.values(), key=lambda x: len(x))
 
 # Search for redundant nested sequences
-p_set2 = probe_designer.mRNA_designer.probe_set_refiner(all_p2)
+p_set2 = probe_designer.probe_refiner.probe_set_refiner(all_p2)
 
 p_set2 = {k: v for k, v in p_set2.items() if len(v) >= 24}
 

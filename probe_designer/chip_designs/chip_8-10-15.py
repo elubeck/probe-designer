@@ -9,6 +9,8 @@ import probe_designer.mRNA_designer
 import csv
 
 ####### Brain Genes
+import probe_designer.probe_refiner
+
 gene_list = []
 with open("temp/tf_midbrain.txt", 'rU') as fin:
     for line in csv.reader(fin):
@@ -100,7 +102,7 @@ for gene, vals in groupby(sorted(p), lambda x: x[0]):
             all_p2[gene] = max(p_dict.values(), key=lambda x: len(x))
 
 # Search for redundant nested sequences
-p_set2 = probe_designer.mRNA_designer.probe_set_refiner(all_p2)
+p_set2 = probe_designer.probe_refiner.probe_set_refiner(all_p2)
 
 p_set2 = {k: v for k, v in p_set2.items() if len(v) >= 24}
 

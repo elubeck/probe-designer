@@ -5,7 +5,7 @@ import copy
 import csv
 import random
 import sys
-from collections import Counter, defaultdict
+from collections import defaultdict
 from itertools import groupby
 from tempfile import NamedTemporaryFile
 from operator import itemgetter
@@ -13,11 +13,9 @@ from pathlib import Path
 
 import dataset
 from Bio import SeqIO
-
 from Bio.SeqRecord import SeqRecord
 
 from progressbar import ProgressBar
-import blaster
 from oligoarray_designer import OligoarrayDesigner
 from probe_designer.utils.misc import gc_count, n_probes
 from probe_designer.utils.timeout import timeout
@@ -100,110 +98,6 @@ class ProbeDesigner(object):
         self.secondary_struct_temp = secondary_struct_temp
 
 
-def filter_probes_by_blast(probes):
-    def probe_to_fasta(probe):
-        return ">{Name},{Probe #}\n{Probe (5'-> 3')}\n".format(**probe)
-
-    iv = [probe
-          for probe_set in probes for probe in probe_set.T.to_dict().values()]
-    probe_lookup = {
-        "{Name},{Probe #}".format(**probe): probe["Probe (5'-> 3')"]
-        for probe in probes
-    }
-    fasta_str = "".join(probe_to_fasta(probe) for probe in probes)
-    # for n, probe in enumerate(probes.values):
-    #     probe_lookup.append(("{},{}".format(gene, n), probe))
-    # probe_lookup = dict(probe_lookup )
-    # fasta_str = "\n".join(">{}\n{}".format(k, v) for k,v in probe_lookup.iteritems())
-
-    strand = 1
-    res = blaster.local_blast_query(fasta_str, db='gencode_tracks_reversed')
-    hits = blaster.parse_hits(res, strand=strand, match_thresh=18)
-
-    import pdb
-    pdb.set_trace()
-    hit_vals = []
-    for probe_name, matches in hits.iteritems():
-        gene_name = probe_name.split(",")[0]
-        gencode_id, refseq = map(list, zip(*[match.split(',')
-                                             for match in matches]))
-        if not gene_name in refseq:
-            continue
-            bad_count += 1
-            # raise Exception("Query not found in hits")
-        del gencode_id[refseq.index(gene_name)]
-        try:
-            hit_vals.append((probe_name, blaster.get_copynum(gencode_id)))
-        except:
-            print("Failed @ {}".format(gencode_id))
-    hit_vals = sorted(hit_vals, key=lambda x: x[1], reverse=True)
-
-    def gc_count(probe):
-        return len([1 for c in probe.lower() if c in ['c', 'g']]) / len(probe)
-
-    # Iterate everyg ene
-    from itertools import groupby
-    from collections import Counter
-    hit_val2 = sorted(hit_vals, key=lambda x: x[0].split(',')[0])
-    off_target_thresh = 7
-    finished_probes = {}
-    # Iterate through every probeset
-    for target, probe_set in groupby(hit_val2,
-                                     key=lambda x: x[0].split(',')[0]):
-        probe_set = list(probe_set)
-
-        # First pick probes with no off target hits
-        passed_probes = [probe for probe in probe_set if probe[1] == 0]
-        remaining_probes = set(probe_set)
-        remaining_probes.difference_update(passed_probes)
-
-        # Sort remaining probes by off target hits
-        choices = sorted(list(remaining_probes), key=lambda x: x[1])
-        choice_index = 0
-        off_target = Counter([])
-
-        # Iterate until at least 24 probes are picked or no more probes are available
-        while len(passed_probes) < 24 and choice_index != len(remaining_probes):
-            selected = choices[choice_index]
-            # Get off target hits for chosen probe
-            off_target_hit = [k for k in hits[selected[0]]
-                              if target != k.split(',')[1]]
-            test_counter = off_target + Counter(off_target_hit)
-
-            # Check if adding this probe makes anything go over off target threshold
-            over_thresh = [True for k in test_counter.values()
-                           if k >= off_target_thresh]
-            if not any(over_thresh):
-                passed_probes.append(selected)
-                off_target = test_counter
-            choice_index += 1
-
-        # If more than 24 probes chosen optimize on GC
-        if len(passed_probes) > 24:
-            # Get GC counts of every probe
-            probe_gc = [(probe[0], gc_count(probe_lookup[probe[0]]))
-                        for probe in passed_probes]
-            gc_target = 0.55
-            gc_range = 0.01
-            multiplier = 1
-            chosen_gc = []
-            # Get closest probe set to 0.55 gc
-            while len(chosen_gc) < 24:
-                gc_min = gc_target - gc_range * multiplier
-                gc_max = gc_target + gc_range * multiplier
-                chosen_gc = [probe for probe, gc in probe_gc
-                             if gc_max >= gc >= gc_min]
-                multiplier += 1
-
-            # If too many probes still exists choose a random subset
-            if len(chosen_gc) != 24:
-                chosen_gc = random.sample(chosen_gc, 24)
-            passed_probes = chosen_gc
-        else:
-            passed_probes = [probe for probe, n in passed_probes]
-        finished_probes[target] = [probe_lookup[probe]
-                                   for probe in passed_probes]
-        return finished_probes
 
 
 def sub_seq_splitter(seq, size,
@@ -314,31 +208,6 @@ def sub_seq_splitter(seq, size,
                 raise Exception("Probe design fail")
     # DEBUG_END
     return passed_probes
-
-
-def probe_set_refiner(pset_i, block_size=18):
-    """
-    Checks that probes don't hit the same target of block_size.  Drops probes if they do.  Returns a filtered probeset.
-    Makes the assumption that all probes from different sets that hit the same target must be dropped.  This assumption can be faulty in the case of non-mRNA targeting sequences such as adapters added to probes.  Prefered behavior in this case would be to drop nothing or only mRNA binding sequences.
-    """
-    pset = copy.deepcopy(pset_i)
-    p_lookup = defaultdict(list)
-    flat_pfrags = []
-    for gene, probes in pset.iteritems():
-        for probe in probes:
-            for i in range(0, len(probe) - block_size):
-                p_lookup[probe[i:i + block_size]].append(gene)
-                flat_pfrags.append(probe[i:i + block_size])
-    # Get probes that hit multiple targets
-    counts = [(k, v) for k, v in Counter(flat_pfrags).iteritems() if v > 1]
-    counts = [(bad_probe, n_hits) for bad_probe, n_hits in counts
-              if len(set(p_lookup[bad_probe])) > 1]
-    for probe, n_hits in counts:
-        for target in set(p_lookup[probe]):
-            for n, probe_seq in enumerate(pset[target]):
-                if probe in probe_seq:
-                    del pset[target][n]
-    return pset
 
 
 def batch_design(genes, max_time=180):

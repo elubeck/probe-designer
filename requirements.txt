@@ -1,3 +1,5 @@
+progressbar
+dataset
 arrow
 pandas
 docopt

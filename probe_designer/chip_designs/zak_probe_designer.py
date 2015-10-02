@@ -6,6 +6,7 @@ import intron_designer2
 from progressbar import ProgressBar
 
 import probe_designer.mRNA_designer
+import probe_designer.probe_refiner
 
 high_priority = ['Albhk5',
                  'Ash1',
@@ -261,7 +262,7 @@ for gene_d in filtered_probe_table.distinct('target'):
         all_probes[gene] = probes
 
 # Search for redundant nested sequences
-p_set2 = probe_designer.mRNA_designer.probe_set_refiner(all_probes)
+p_set2 = probe_designer.probe_refiner.probe_set_refiner(all_probes)
 
 p_set2 = {k: v for k, v in p_set2.items() if len(v) >= 24}
 

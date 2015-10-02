@@ -16,6 +16,7 @@ import csv
 import json
 from probe_designer.get_seq import reverse_complement
 from collections import Counter
+import probe_designer.probe_refiner
 
 filterer = intron_designer2.ProbeFilter()
 ###### Blast Adapters ###########
@@ -83,7 +84,7 @@ for gene_d in filtered_probe_table.distinct('target'):
         all_probes[gene] = probes
 
 # Search for redundant nested sequences
-p_set2 = probe_designer.mRNA_designer.probe_set_refiner(all_probes)
+p_set2 = probe_designer.probe_refiner.probe_set_refiner(all_probes)
 
 # Blast Everything to check that all probes together don't cause big problems
 flat_probes = [
