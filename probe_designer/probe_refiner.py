@@ -4,8 +4,8 @@ import copy
 import csv
 from itertools import groupby
 import random
-from probe_designer import blaster
-from probe_designer.utils.misc import gc_count
+import blaster
+from utils.misc import gc_count
 
 __author__ = 'Eric'
 
