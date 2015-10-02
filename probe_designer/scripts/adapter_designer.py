@@ -1,6 +1,6 @@
 from __future__ import print_function, division, unicode_literals
 import csv
-from intron_designer2 import ProbeFilter
+from probe_designer.intron_designer import ProbeFilter
 
 pf = ProbeFilter()
 with open('/home/eric/20mer_adaptors.csv', 'rU') as fin:
@@ -16,7 +16,8 @@ hit_vals = sorted(hit_vals, key=lambda x: x[1])
 hit_vals = [(probe_lookup[hit], n) for hit, n in hit_vals]
 h2 = {k for k,c in hit_vals if c == 0 }
 
-from get_seq import reverse_complement
+from probe_designer.utils.misc import reverse_complement
+
 probe_lookup = {"{},{}".format(n*3, n*2): reverse_complement(probe) for n, probe in enumerate(h2)}
 res = pf.run_blast(probe_lookup, match_thresh=12)
 hit_vals = pf.blast2copynum(res, drop_self=False)

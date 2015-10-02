@@ -1,62 +1,29 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 from builtins import *
-
 import copy
 import csv
 import random
-import signal
 import sys
 from collections import Counter, defaultdict
 from itertools import groupby
-import json
 from tempfile import NamedTemporaryFile
+from operator import itemgetter
+from pathlib import Path
 
 import dataset
 from Bio import SeqIO
-from Bio.Seq import Seq
-from Bio.SeqRecord import SeqRecord
-from operator import itemgetter
-from pathlib import Path
-from progressbar import ProgressBar
 
-import blaster2
-import get_seq
+from Bio.SeqRecord import SeqRecord
+
+from progressbar import ProgressBar
+import blaster
 from oligoarray_designer import OligoarrayDesigner
+from probe_designer.utils.misc import gc_count, n_probes
+from probe_designer.utils.timeout import timeout
+from utils.misc import  gc_count
 
 csv.field_size_limit(sys.maxsize)  # Prevent field size overflow.
-
-
-def gc_count(probe):
-    """
-    Returns the % GC for a string
-    """
-    return len([1 for c in probe.lower() if c in ['c', 'g']]) / len(probe)
-
-
-class TimeoutError(Exception):
-    pass
-
-
-class timeout(object):
-    def __init__(self, seconds=1, error_message='Timeout'):
-        self.seconds = seconds
-        self.error_message = error_message
-
-    def handle_timeout(self, signum, frame):
-        raise TimeoutError(self.error_message)
-
-    def __enter__(self):
-        signal.signal(signal.SIGALRM, self.handle_timeout)
-        signal.alarm(self.seconds)
-
-    def __exit__(self, type, value, traceback):
-        signal.alarm(0)
-
-
-def n_probes(chunk_list, probe_size=35):
-    # Get # of probes that could be made from set of gene chunks
-    return sum(len(chunk) // probe_size for chunk in chunk_list)
 
 
 class ProbeDesigner(object):
@@ -150,8 +117,8 @@ def filter_probes_by_blast(probes):
     # fasta_str = "\n".join(">{}\n{}".format(k, v) for k,v in probe_lookup.iteritems())
 
     strand = 1
-    res = blaster2.local_blast_query(fasta_str, db='gencode_tracks_reversed')
-    hits = blaster2.parse_hits(res, strand=strand, match_thresh=18)
+    res = blaster.local_blast_query(fasta_str, db='gencode_tracks_reversed')
+    hits = blaster.parse_hits(res, strand=strand, match_thresh=18)
 
     import pdb
     pdb.set_trace()
@@ -166,7 +133,7 @@ def filter_probes_by_blast(probes):
             # raise Exception("Query not found in hits")
         del gencode_id[refseq.index(gene_name)]
         try:
-            hit_vals.append((probe_name, blaster2.get_copynum(gencode_id)))
+            hit_vals.append((probe_name, blaster.get_copynum(gencode_id)))
         except:
             print("Failed @ {}".format(gencode_id))
     hit_vals = sorted(hit_vals, key=lambda x: x[1], reverse=True)
@@ -463,7 +430,6 @@ def batch_design2(genes,
     from functools import partial
     d_wrap = partial(design_step, max_time=max_time, cds_only=cds_only)
     p = Pool(cpu_count())
-    from itertools import imap
     for n, vals in enumerate(p.imap(d_wrap, gi)):
         gene, probes, gene_records = vals
         if gene == "FAILED": continue
@@ -619,8 +585,6 @@ class RNAIterator(RNAGetter):
         super(self.__class__, self).__init__()
 
 
-def gc_count(probe):
-    return len([1 for c in probe.lower() if c in ['c', 'g']]) / len(probe)
 
 
 class RNARetriever2(object):

@@ -1,225 +1,365 @@
 from __future__ import division, print_function
 
 import csv
-import gzip
 import random
+import sys
 from collections import Counter
-from math import ceil
+from itertools import groupby
+from intron_locator import IntronGetter, ChromIntronIterator
 
 import dataset
 from Bio import SeqIO
-from Bio.Seq import Seq
+from tempfile import NamedTemporaryFile
+from progressbar import ProgressBar
+import blaster
+from Bio.SeqRecord import SeqRecord
+from pathlib import Path
 
-from oligoarray_designer import Oligoarray, OligoarrayDesigner
+from oligoarray_designer import OligoarrayDesigner
+from utils.misc import  gc_count, n_probes
+
+csv.field_size_limit(sys.maxsize)  # Prevent field size overflow.
 
 
-class Introns(object):
-    """
-    Iterator that iterates over introns retrieved from UCSC.
-    """
 
-    def get_ids(self):
-        # Table of every RefSeqID -> GeneName
-        with open("db/Refseq2Gene.tsv", "r") as tsvin:
-            return dict(csv.reader(tsvin, delimiter='\t'))
+class IntronRetriever(object):
+    def get_single_intron(self, gene, chunk_size=1000):
+        row = self.intron_getter.run_gene(gene)
+        chrom_code = row['chrom']
+        chrom_path = self.chromo_folder.joinpath(
+            "{}.fa.masked".format(chrom_code))
+        chrom_seq = SeqIO.read(str(chrom_path), 'fasta')
+        return self.get_intron(row, chrom_seq, chunk_size)
 
-    def get_introns(self, repeat_masking=True, count_introns=True):
-        # Refseq intron fasta indexed by ID downloaded from UCSC genome browser
-        # Repetive elements are masked in lowercase
-        # By default repeats are masked
-        used_names = []
-        with gzip.open("db/refseq_intron_maskedLower.gzip.gz", 'rb') as f:
-            for fasta in SeqIO.parse(f, 'fasta'):
-                id = fasta.id.split("refGene_")[1]
-                ref_name = self.refseq_id[id]
-                if count_introns:
-                    used_names.append(ref_name)
-                    intron_num = used_names.count(ref_name)
-                    if intron_num != 1:
-                        import pdb; pdb.set_trace()
-                    fasta.name = "{}_Intron#{}".format(ref_name, intron_num)
-                else:
-                    fasta.name = ref_name
-                if repeat_masking:
-                    fasta.seq = Seq("".join([c for c in fasta.seq
-                                             if c.isupper()]))
-                yield fasta
+    def get_intron(self, row, chrom_seq, chunk_size=1000):
+        name2 = row['name2']
+        if not row['introns']:
+            yield None
+            return
+        for start, end in row['introns']:
+            seq = chrom_seq[start:end]
+            if row['strand'] == "+":  #TODO: CHECK THAT THIS IS CORRECT
+                seq = seq.reverse_complement()
+            # Drop masked sequences
+            for sub_seq in seq.seq.split("N"):
+                if len(sub_seq) >= 20:
+                    record = SeqRecord(sub_seq,
+                                       name=name2,
+                                       id=name2,
+                                       description='')
+                    for start in range(0, len(record), chunk_size):
+                        yield record[start:start + chunk_size]
 
     def __iter__(self):
-        for intron in self.get_introns(repeat_masking=self.repeat_masking):
-            yield intron
+        chrom_i = self.intron_getter.table.distinct('chrom')
+        if self.reversed is True:
+            chrom_i = reversed(list(chrom_i))
+        for chromosome in chrom_i:
+            chrom_code = chromosome['chrom']
+            chrom_path = self.chromo_folder.joinpath(
+                "{}.fa.masked".format(chrom_code))
+            chrom_seq = SeqIO.read(str(chrom_path), 'fasta')
+            for row in ChromIntronIterator(chrom_code,
+                                           skip_introns=self.skip_probes):
+                gene_records = self.get_intron(row, chrom_seq)
+                records = list(gene_records)
+                if any(records):
+                    yield records
 
-    def __init__(self, repeat_masking=True, count_introns=True):
-        self.refseq_id = self.get_ids()
-        self.repeat_masking = repeat_masking
-        self.count_introns = count_introns
-        self.organism = "mouse"
+    def __init__(self, organism='mouse', skip_probes=None, reversed=False):
+        self.organism = organism
+        self.chromo_folder = Path("db/{}/chromFaMasked/".format(organism))
+        self.intron_getter = IntronGetter(in_all=True)
+        if skip_probes is None:
+            self.skip_probes = []
+        else:
+            self.skip_probes = skip_probes
+        self.tot_introns = self.intron_getter.tot_records - len(skip_probes)
+        self.reversed = reversed
 
 
-class Intron(object):
-    def to_fasta(self, chunk_size=1000):
-        rev_comp = self.record.seq.reverse_complement()
-        for chunk_n, chunk_start in enumerate(range(0, len(rev_comp), 1000)):
-            seq_chunk = rev_comp[chunk_start:chunk_start + 1000]
-            fasta_str = ">{}=Chunk:{}\n{}\n".format(self.name, chunk_n,
-                                                    seq_chunk)
-            yield fasta_str
 
-    def __init__(self, record):
-        self.record = record
-        # TODO: Embed Intron number in name
-        self.name = "{}_{}".format(self.record.name, "intron")
-
-
-def gc_count(probe):
-    return len([1 for c in probe.lower() if c in ['c', 'g']]) / len(probe)
-
-def get_record(gene_name, repeat_masking=False, count_introns=False):
-    hits = {}
-    ref_id = Introns().refseq_id
-    used_names = []
-    with gzip.open("db/refseq_intron_maskedLower.gzip.gz", 'rb') as f:
-        for fasta in SeqIO.parse(f, 'fasta'):
-            id = fasta.id.split("refGene_")[1]
-            ref_name = ref_id[id]
-            if gene_name.lower() in ref_name.lower():
-                print(fasta.id)
-                if count_introns:
-                    used_names.append(ref_name)
-                    intron_num = used_names.count(ref_name)
-                    fasta_tag =  "{}_Intron#{}".format(ref_name, intron_num)
-                else:
-                    fasta_tag = ref_name
-                if repeat_masking:
-                    fasta.seq = Seq("".join([c for c in fasta.seq
-                                                if c.isupper()]))
-                hits[fasta_tag] = fasta
-    return hits
-
-zak_genes = [
-    'Albhk5', 'Ash1', 'Axin2', 'Bmi1', 'bmp4', 'bmpr1a', 'Brachyury', 'Cdh1',
-    'Col5a2', 'ctcf', 'dazl', 'Dnmt1', 'dnmt3a', 'Dnmt3b', 'Dnmt3L', 'Dppa2',
-    'Dppa3', 'Dppa4', 'EED', 'ehmt2', 'Esrrb', 'Ezh2', 'Fbxo15',
-    'Fgf4', 'FGF5', 'Fgfr2', 'Foxa2', 'FoxO1', 'pax6', 'Pecam1', 'Pou5f1',
-    'Prdm14', 'Rest', 'Sall4', 'Sdha',
-    'setdb1', 'Smad1', 'Smad4', 'Smad5', 'Socs3', 'Sox2',
-    'Sp1', 'Suz12', 'sycp3', 'Tbx3', 'Tcl1', 'Tet1', 'tet2', 'tet3', 'Thy1',
-    'Trim28', 'Utf1', 'Xist', 'Zfp42', 'Mecp2',
-    'MBD3', 'Foxa2', 'Gata4', 'Ptf1a', 'Cdx2', 'Eomes', 'Gcm1', 'Krt1', 'Afp',
-    'Serpina1a', 'Fn1', 'Lama1', 'Lamb1', 'Lamc1', 'Sox17', 'T', 'Wt1', 'Des',
-    'Myf5', 'Myod1', 'Hba-x', 'Hbb-y', 'Col1a1', 'Runx2', 'Nes', 'Neurod1',
-    'Pax6', 'Cd34', 'Cdh5', 'Flt1', 'Pecam1', 'Ddx4', 'Sycp3', 'Gcg', 'Iapp',
-    'Ins2', 'Pax4', 'Pdx1', 'Sst', 'Olig2', 'Tat', 'Foxd3', 'Gata6',
-    'Gbx2', 'Nanog', 'Nr5a2', 'Nr6a1', 'Pou5f1', 'Sox2', 'Tcfcp2l1',
-    'Utf1', 'Zfp42', 'Commd3', 'Crabp2', 'Ednrb', 'Fgf4', 'Fgf5', 'Gabrb3',
-    'Gal', 'Grb7', 'Hck', 'Ifitm1', 'Il6st', 'Kit', 'Lefty1', 'Lefty2',
-    'Lifr', 'Nodal', 'Nog', 'Numb', 'Pten', 'Sfrp2', 'Tdgf1', 'Fgf4', 'Fgf5',
-    'Gdf3', 'Lefty1', 'Lefty2', 'Nodal', 'Brix1', 'Cd9', 'Diap2', 'Ifitm2',
-    'Igf2bp2', 'Lin28a', 'Podxl', 'Rest', 'Sema3a', 'Tert', 'Il6st', 'Lifr',
-    'Socs3', 'Stat3', 'Fgfr1', 'Fgfr2', 'Fgfr3', 'Fgfr4', 'Ptch1', 'Ptchd2',
-    'Smo', 'Gli1', 'Gli2', 'Gli3', 'Sufu', 'Ncstn', 'Notch1', 'Notch2',
-    'Notch3', 'Notch4', 'Psen1', 'Psen2', 'Psenen', 'Rbpjl', 'Hes1', 'Hey1',
-    'Acvr1', 'Acvr1b', 'Acvr1c', 'Acvr2a', 'Acvr2b', 'Acvrl1', 'Amhr2',
-    'Bmpr1a', 'Bmpr1b', 'Bmpr2', 'Eng', 'Ltbp1', 'Ltbp2', 'Ltbp3', 'Ltbp4',
-    'Rgma', 'Tgfbr1', 'Tgfbr2', 'Tgfbr3', 'Tgfbrap1', 'Crebbp', 'E2f5',
-    'Ep300', 'Rbl1', 'Rbl2', 'Smad1', 'Smad2', 'Smad3', 'Smad4', 'Smad5',
-    'Smad6', 'Smad7', 'Smad9', 'Sp1', 'Zeb2', 'Fzd1', 'Fzd2', 'Fzd3', 'Fzd4',
-    'Fzd5', 'Fzd6', 'Fzd7', 'Fzd8', 'Fzd9', 'Lrp5', 'Lrp6', 'Vangl2', 'Bcl9',
-    'Bcl9l', 'Ctnnb1', 'Lef1', 'Nfat5', 'Nfatc1', 'Nfatc2', 'Nfatc3', 'Nfatc4',
-    'Pygo2', 'Tcf7l1', 'Tcf7', 'Tcf7l2', 'Mecp2', 'MBD3'
-]
-
-zak_genes = map(lambda x: x.lower(), zak_genes)
-
-if __name__ == "__main__":
-    # Shortcut code to count total # of introns
-    # tot_introns = len([i for i in Introns(repeat_masking=False, count_introns=False)])
-    tot_introns = 30759
-    introns = Introns()
-    intron_db = dataset.connect("sqlite:///db/intron_probes.db")
-    probe_db = intron_db['mouse']
-    used_probes = set([row['Name'] for row in probe_db.distinct("Name")])
-    queue = []
-    # Temporarily changed for zak genes
-    undesigned_introns = ((n, i) for n, i in enumerate(introns)
-                          if i.name not in used_probes)
-    # if i.name.lower().split("_intron")[0] in zak_genes)
-    intron_1 = ((n, i) for n, i in undesigned_introns
-                if i.name.endswith("Intron#1"))
-    o = OligoarrayDesigner(
-        blast_db='/home/eric/blastdb/old_format/mouse_introns_revcomp')
-    for design_num, (n, i) in enumerate(intron_1):
-        print(design_num, n, i.name)
-        f_loc = "temp/temp.fasta"
-        n_chunks = len(i.seq) // 1000
-        # If too many chunks exist pick random ones
-        tot_chunks = 120
-        if n_chunks > tot_chunks:
-            sub_set = random.sample(range(0, len(i.seq), 1000), tot_chunks)
-        used = []
-        with open(f_loc, "w") as f:
-            rev_comp = i.seq.reverse_complement()
-            for chunk_n, chunk_start in enumerate(range(0, len(rev_comp),
-                                                        1000)):
-                # Skip chunks not in list
-                if n_chunks > tot_chunks and chunk_start not in sub_set:
-                    continue
-                seq_chunk = rev_comp[chunk_start:chunk_start + 1000]
-                # fasta_str = ">{}=Chunk:{}\n{}\n".format(i.name, chunk_n,
-                #                                         seq_chunk)
-                # Removed Chunk identifier
-                fasta_str = ">{}\n{}\n".format(i.name, seq_chunk) 
-                f.write(fasta_str)
-                used.append(chunk_n)
-        n_chunks = len(used)
-        n_probes = 0
-        n_iterations = 0
-        # Set oligo number threshold to minimum to hit n_chunks
-        max_oligos = int(ceil(tot_chunks / n_chunks))
-        # Reduce Computation Time: Only design small set of oligos for every chunk
-        # Iterate this until at least 100 probes designed
-        p_num = 9553553535  # Just a random number for initiatlization
-        while n_probes < 100:
-            res = o.run(f_loc,
+class Designer(object):
+    def run_oligoarray(self, chunks, max_probes=150, probe_size=None):
+        """
+        Chunks is a list of gene fragments lists. [Gene[fragment_1...fragment_m],...Gene_n]
+        """
+        assert (isinstance(chunks[0], list))
+        if not probe_size:
+            probe_size = self.probe_size
+        flat_probes = []
+        with NamedTemporaryFile("w") as fasta_input:
+            # Break records into 1000nt chunks
+            for gene_chunks in chunks:
+                if n_probes(gene_chunks) > max_probes:
+                    # Reduce potential probeset size to drop design time
+                    while n_probes(gene_chunks, probe_size) > max_probes:
+                        gene_chunks = random.sample(gene_chunks,
+                                                    len(gene_chunks) - 1)
+                SeqIO.write(gene_chunks, fasta_input,
+                            'fasta')  # write all sequences to file
+            fasta_input.flush()
+            res = o.run(fasta_input.name,
                         max_dist=1000,
-                        min_length=35,
-                        max_length=35,
+                        min_length=probe_size,
+                        max_length=probe_size,
                         max_tm=100,
                         cross_hyb_temp=72,
                         min_tm=74,
                         secondary_struct_temp=76,
-                        max_oligos=max_oligos,
-                        timeout=10)
-            if len(res) > 1:
-                raise Exception("This shouldn't happen")
+                        max_oligos=100,
+                        timeout=15)
+            for name, probes in res:
+                probes['Percent GC'] = 100 * probes["Probe (5'-> 3')"].map(
+                    gc_count)
+                flat_probes.append(proves.to_dict().values())
+        return flat_probes
+
+    def __iter__(self):
+        used_probes = set([row['Name']
+                           for row in self.probe_db.distinct("Name")])
+        chunksize = 12
+        probe_size = self.probe_size
+        chunks = []
+        intron_retriever = IntronRetriever()
+        for n, gene in enumerate(intron_retriever):
+            if gene[0].id in used_probes:
+                continue
+            name = gene[0].id.lower()
+            chunks.append(gene)
+            if len(chunks) == chunksize:
+                probes = self.run_oligoarray(chunks, probe_size=probe_size)
+                self.probe_db.insert_many(res)
+                chunks = []
+            p_bar.update(n)
+        p_bar.finish()
+
+    def run(self, probe_size=35):
+        pass
+
+    def __init__(self, organism='mouse'):
+        intron_db = dataset.connect("sqlite:///db/intron_probes3.db")
+        self.probe_db = intron_db[organism]
+        self.o = OligoarrayDesigner(
+            blast_db='/home/eric/blastdb/old_format/transcribed_mouse2')
+        self.probe_size = probe_size
+
+
+class ProbeFilter(object):
+    def run_batch(self):
+        hit_val2 = sorted(hit_vals, key=lambda x: x[0].split(',')[0])
+        finished_probes = {}
+        # Iterate through every probeset
+        for target, probe_set in groupby(hit_val2,
+                                         key=lambda x: x[0].split(',')[0]):
+            pass
+
+    def filter_probes(self, probe_set, target, hits, probe_lookup,
+                      max_hits=10000,
+                      off_target_thresh=7,
+                      probe_num=48, ):
+        # Filter out probes with greater than max_hits off target hits
+        probe_set = [probe for probe in probe_set if probe[1] < max_hits]
+        # First pick probes with no off target hits
+        passed_probes = [probe for probe in probe_set if probe[1] == 0]
+        remaining_probes = set(probe_set)
+        remaining_probes.difference_update(passed_probes)
+
+        # Sort remaining probes by off target hits
+        choices = sorted(list(remaining_probes), key=lambda x: x[1])
+        choice_index = 0
+        off_target = Counter([])
+
+        # Iterate until at least probe_num probes are picked or no more probes are available
+        while len(passed_probes) < probe_num and choice_index != len(
+            remaining_probes):
+            selected = choices[choice_index]
+            # Get off target hits for chosen probe
+            off_target_hit = [k for k in hits[selected[0]]
+                              if target != k.split(',')[1]]
+            test_counter = off_target + Counter(off_target_hit)
+
+            # Check if adding this probe makes anything go over off target threshold
+            over_thresh = [True for k in test_counter.values()
+                           if k >= off_target_thresh]
+            if not any(over_thresh):
+                passed_probes.append(selected)
+                off_target = test_counter
+            choice_index += 1
+
+        # If more than 24 probes chosen optimize on GC
+        if len(passed_probes) > probe_num:
+            # Get GC counts of every probe
+            probe_gc = [(probe[0], gc_count(probe_lookup[probe[0]]))
+                        for probe in passed_probes]
+            gc_target = 0.55
+            gc_range = 0.01
+            multiplier = 1
+            chosen_gc = []
+            # Get closest probe set to 0.55 gc
+            while len(chosen_gc) < probe_num:
+                gc_min = gc_target - gc_range * multiplier
+                gc_max = gc_target + gc_range * multiplier
+                chosen_gc = [probe for probe, gc in probe_gc
+                             if gc_max >= gc >= gc_min]
+                multiplier += 1
+            # If too many probes still exists choose a random subset
+            if len(chosen_gc) != probe_num:
+                chosen_gc = random.sample(chosen_gc, probe_num)
+            passed_probes = chosen_gc
+        else:
+            passed_probes = [probe for probe, n in passed_probes]
+        return passed_probes
+
+    def blast2copynum(self, hits, drop_self=True):
+        """
+        drop_self = True: make sure probes that probes that hit themselves are not counted in blast tally
+        """
+        hit_vals = []
+        for probe_name, matches in hits.iteritems():
+            gene_name = probe_name.split(",")[0].lower()
+            if any(matches):  # Added incase no matches
+                gencode_id, refseq = map(list, zip(*[match.lower().split(',')
+                                                     for match in matches]))
+            else:
+                gencode_id, refseq = [], []
+            if drop_self:
+                if not gene_name in refseq:
+                    continue
+                    bad_count += 1
+                    # raise Exception("Query not found in hits")
+                del gencode_id[refseq.index(gene_name)]
             try:
-                name, probes = res[0]
-                n_probes = len(probes)
-            except IndexError as e:
-                print("No Probes returned")
-                if n_iterations != 0:
-                    print("Giving up making probes for {}".format(i.name))
-                    break
-                n_iterations += 1
-                max_oligos *= 2
-                continue
-                n_probes = len(probes)
-            if n_probes == p_num and n_iterations != 0:
-                print("Can't make more probes for {}".format(i.name))
-            elif n_probes < 100:
-                if n_iterations > 10:
-                    raise Exception("Too many iterations")
-                n_iterations += 1
-                max_oligos *= 2
-                p_num = n_probes
-                print(
-                    "Trying to design more probes.  Last cycle designed {}".format(
-                        len(probes)))
-                continue
-            progress = 100 * (n / tot_introns)
-            print("{:.02f}%: {} with {} probes after {} iterations".format(
-                progress, name, len(probes), n_iterations))
-            probes['Percent GC'] = 100 * probes["Probe (5'-> 3')"].map(gc_count)
-            probe_db.insert_many(probes.T.to_dict().values())
-            break
-    print(n)
+                hit_vals.append((probe_name, self.get_copynum(gencode_id)))
+            except:
+                print("Failed @ {}".format(gencode_id))
+        hit_vals = sorted(hit_vals, key=lambda x: x[1], reverse=True)
+        return hit_vals
+
+    def run_blast(self, probe_lookup, match_thresh,
+                  strand=None,
+                  db='gencode_tracks_reversed'):
+        if not strand:
+            strand = self.strand
+        fasta_str = "\n".join(">{}\n{}".format(*items)
+                              for items in probe_lookup.iteritems())
+        res = blaster.local_blast_query(fasta_str, db=db)
+        hits = blaster.parse_hits(res,
+                                   strand=strand,
+                                   match_thresh=match_thresh)
+        return hits
+
+    def run(self, flat_probes, gene_name,
+            match_thresh=18,
+            n_probes=48,
+            max_off_target=10000):
+        """
+        flat_probes is a list of probes.  Sequence only
+        """
+        probe_lookup = {
+            "{},{}".format(gene_name, n): probe
+            for n, probe in enumerate(flat_probes)
+        }
+        res = self.run_blast(probe_lookup, match_thresh, db=self.db)
+        hit_vals = self.blast2copynum(res)
+        filtered_probes = self.filter_probes(hit_vals, gene_name, res,
+                                             probe_lookup,
+                                             probe_num=n_probes,
+                                             max_hits=max_off_target)
+        finished_probes = [probe_lookup[probe] for probe in filtered_probes]
+        return finished_probes
+
+    def get_copynum(self, hits):
+        split_hits = (hit.split(',')[0] for hit in hits)
+        false_hits = sum(self.counts[name] for name in split_hits
+                         if name in self.counts.keys())
+        return false_hits
+
+    def __init__(self,
+                 db='gencode_tracks_reversed',
+                 strand='+',
+                 copy_num='embryonic11.5'):
+        self.db = db
+        if strand == '+':
+            self.strand = 1
+        else:
+            self.strand = -1
+        if copy_num == 'embryonic11.5':
+            # Get merged embryonic 11.5 encode data
+            with open('db/encode_counts.csv', 'r') as f:
+                self.counts = {
+                    line[0]: float(line[1])
+                    for line in csv.reader(f)
+                }
+        elif copy_num == 'brain':
+            with open('db/brain_counts.csv', 'r') as f:
+                self.counts = {
+                    line[0]: float(line[1])
+                    for line in csv.reader(f)
+                }
+        else:
+            raise Exception('need a valid copy_num database')
+
+# intron_db_filtered = dataset.connect("sqlite:///db/intron_probes_filtered.db.bk")
+# filtered_probe_table = intron_db_filtered['mouse']
+# targets = [row['target'] for row in filtered_probe_table.distinct('target')]
+# passed = [t_name for t_name in targets if len(list(filtered_probe_table.find(target=t_name))) >= 24]
+
+
+def design_introns(reversed=False):
+    # First get used probes
+    intron_db = dataset.connect("sqlite:///db/intron_probes_10k_3.db")
+    probe_db = intron_db['mouse']
+    used_probes = set([row['Name'] for row in probe_db.distinct("Name")])
+    o = OligoarrayDesigner(
+        blast_db='/home/eric/blastdb/old_format/transcribed_mouse2')
+    chunksize = 12
+    probe_size = 35
+    chunks = []
+    # Check if a good probeset was already designed
+    # intron_db_filtered = dataset.connect(
+    #     "sqlite:///db/intron_probes_filtered.db.bk")
+    # filtered_probe_table = intron_db_filtered['mouse']
+    intron_retriever = IntronRetriever(skip_probes=used_probes,
+                                       reversed=reversed)
+    p_bar = ProgressBar(maxval=intron_retriever.tot_introns).start()
+    for n, gene in enumerate(intron_retriever):
+        p_bar.update(n)
+        gene_chunks = []
+        for chunk in gene:
+            gene_chunks.append(chunk)
+            if n_probes(gene_chunks) > 200:
+                break
+        if chunk.id in used_probes: continue
+        # if len(list(filtered_probe_table.find(target=chunk.id))) >= 24:
+        #     continue
+        # Tagging of introns in db should be added around here
+        chunks.append(gene_chunks)
+        if len(chunks) == chunksize:
+            with NamedTemporaryFile("w") as fasta_input:
+                # Break records into 1000nt chunks
+                for gene_chunks in chunks:
+                    # Reduce potential probeset size to drop design time
+                    while n_probes(gene_chunks, probe_size) > 200:
+                        gene_chunks = random.sample(gene_chunks,
+                                                    len(gene_chunks) - 1)
+                    SeqIO.write(gene_chunks, fasta_input,
+                                'fasta')  # write all sequences to file
+                fasta_input.flush()
+                res = o.run(fasta_input.name,
+                            max_dist=1000,
+                            min_length=probe_size,
+                            max_length=probe_size,
+                            max_tm=100,
+                            cross_hyb_temp=72,
+                            min_tm=74,
+                            secondary_struct_temp=76,
+                            max_oligos=100,
+                            timeout=15)
+            for name, probes in res:
+                probes['Percent GC'] = 100 * probes["Probe (5'-> 3')"].map(
+                    gc_count)
+                probe_db.insert_many(probes.T.to_dict().values())
+            p_bar.update(n)
+            chunks = []
+    p_bar.finish()

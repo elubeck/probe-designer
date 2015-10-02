@@ -1,5 +1,5 @@
 from __future__ import division, print_function, unicode_literals
-import mRNA_designer
+import probe_designer.mRNA_designer
 from progressbar import ProgressBar
 import csv
 import dataset
@@ -103,8 +103,10 @@ import random
 #     # fwriter.writerows(seq.values() for seq in random.sample(list(groupby(refined, lambda x: x['target'])), 100))
 
 ############### INTRONS ###################
-from get_seq import reverse_complement
+from probe_designer.utils.misc import reverse_complement
 import dataset
+import probe_designer.utils.misc
+
 with open("/home/eric/tflistall.txt", "r") as fin:
     tfs = [line.strip('\r\n').lower() for line in fin]
 
@@ -135,12 +137,12 @@ with open('adapters.txt', 'r') as fin:
 
 r_adapter = list(reversed(adapter_seq))
 
-import intron_designer2 as id2
+import probe_designer.intron_designer as id2
 import random
 from progressbar import ProgressBar
-import mRNA_designer
+import probe_designer.mRNA_designer
 
-p_set2 = mRNA_designer.probe_set_refiner(all_probes)
+p_set2 = probe_designer.mRNA_designer.probe_set_refiner(all_probes)
 
 # Rock1 is short
 p_keys = set(p_set2.keys()) - {'Rock1'}
@@ -191,8 +193,8 @@ primers = [['ACAGTGGAACGCGCCATGAG', 'CGCTTGTTGGCTGGTATGCG'], [
                'CAATCTGCGGGCATGTTTCG'], ['TCCATGAGCTCTGTTGCGGG',
                                          'CCGGCCTGAAAAACGTAGCG']]
 
-import get_seq
-p2 = [(forward, get_seq.reverse_complement(reverse))
+import probe_designer.get_seq
+p2 = [(forward, probe_designer.utils.misc.reverse_complement(reverse))
       for forward, reverse in primers]
 random.shuffle(intron_probes2)
 final_intron = []

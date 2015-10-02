@@ -6,19 +6,19 @@ All subsequent steps are documented in this file.
 
 from __future__ import print_function, division
 import dataset
-import intron_designer2
+import probe_designer.intron_designer
 from collections import defaultdict
 from itertools import groupby
-import blaster2
+import probe_designer.blaster
 from progressbar import ProgressBar
-import mRNA_designer
-import blaster2
+import probe_designer.mRNA_designer
+import probe_designer.blaster
 import csv
 import json
-from get_seq import reverse_complement
+from probe_designer.utils.misc import reverse_complement
 from collections import Counter
 
-filterer = intron_designer2.ProbeFilter()
+filterer = probe_designer.intron_designer.ProbeFilter()
 ###### Blast Adapters ###########
 adapters = []
 with open("db/adapter10k.csv", "r") as f_in:
@@ -27,9 +27,9 @@ with open("db/adapter10k.csv", "r") as f_in:
 
 fasta_adapter = "\n".join(">{}\n{}".format(n, probe)
                           for n, probe in enumerate(adapters))
-blast_hits_adapter = blaster2.local_blast_query(fasta_adapter,
+blast_hits_adapter = probe_designer.blaster.local_blast_query(fasta_adapter,
                                                 db='gencode_tracks_reversed')
-blast_res_adapter = blaster2.parse_hits(blast_hits_adapter,
+blast_res_adapter = probe_designer.blaster.parse_hits(blast_hits_adapter,
                                         match_thresh=10,
                                         strand=1)
 off_target = {
@@ -39,7 +39,7 @@ off_target = {
 
 ####### Filter New and old Probes  #############
 dbs = ["sqlite:///db/intron_probes3.db", "sqlite:///db/intron_probes2.db.bk"]
-filterer = intron_designer2.ProbeFilter()
+filterer = probe_designer.intron_designer.ProbeFilter()
 intron_db_filtered = dataset.connect(
     "sqlite:///db/intron_probes_filtered_10k.db")
 filtered_probe_table = intron_db_filtered['mouse']
@@ -75,7 +75,7 @@ for gene_d in filtered_probe_table.distinct('target'):
         all_probes[gene] = probes
 
 # Search for redundant nested sequences
-p_set2 = mRNA_designer.probe_set_refiner(all_probes)
+p_set2 = probe_designer.mRNA_designer.probe_set_refiner(all_probes)
 
 # Blast Everything to check that all probes together don't cause big problems
 flat_probes = [
@@ -625,7 +625,7 @@ for file in ['temp/chip_10k_intron.zip', 'temp/chip_10k_intron_ordering.zip']:
             archive.write(f_temp.name, arcname='zak_bridges.csv')
 
 ######### BLAT ALL PROBES ###############
-import align_probes
+import probe_designer.align_probes
 intron_db_filtered = dataset.connect(
     "sqlite:///db/intron_probes_filtered_10k.db")
 filtered_probe_table = intron_db_filtered['mouse']
@@ -637,8 +637,8 @@ p_bar = ProgressBar(maxval=n_genes)
 for n, target_d in enumerate(filtered_probe_table.distinct('target')):
     gene = target_d['target']
     passed = [probe['seq'] for probe in filtered_probe_table.find(target=gene)]
-    chr = align_probes.find_chromosome(gene)
-    chr_positions = align_probes.blat_probes(passed, chr)
+    chr = probe_designer.align_probes.find_chromosome(gene)
+    chr_positions = probe_designer.align_probes.blat_probes(passed, chr)
     for pos in chr_positions:
         pos.update({'target': gene})
     mouse_alignments.insert_many(chr_positions)
