@@ -12,7 +12,7 @@ import probe_designer.mRNA_designer
 import blaster2
 import csv
 import json
-from probe_designer.get_seq import reverse_complement
+from probe_designer.utils.misc import reverse_complement
 from collections import Counter
 
 

@@ -194,7 +194,6 @@ primers = [['ACAGTGGAACGCGCCATGAG', 'CGCTTGTTGGCTGGTATGCG'], [
                'CAATCTGCGGGCATGTTTCG'], ['TCCATGAGCTCTGTTGCGGG',
                                          'CCGGCCTGAAAAACGTAGCG']]
 
-import probe_designer.get_seq
 p2 = [(forward, probe_designer.utils.misc.reverse_complement(reverse))
       for forward, reverse in primers]
 random.shuffle(intron_probes2)
