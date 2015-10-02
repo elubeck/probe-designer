@@ -135,7 +135,7 @@ with open('adapters.txt', 'r') as fin:
 
 r_adapter = list(reversed(adapter_seq))
 
-import probe_designer.intron_designer2 as id2
+import probe_designer.intron_designer as id2
 import random
 from progressbar import ProgressBar
 import probe_designer.mRNA_designer

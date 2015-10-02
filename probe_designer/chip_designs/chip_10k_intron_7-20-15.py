@@ -6,7 +6,7 @@ All subsequent steps are documented in this file.
 
 from __future__ import print_function, division
 import dataset
-import probe_designer.intron_designer2
+import probe_designer.intron_designer
 from collections import defaultdict
 from itertools import groupby
 import probe_designer.blaster
@@ -18,13 +18,13 @@ import json
 from probe_designer.get_seq import reverse_complement
 from collections import Counter
 
-filterer = probe_designer.intron_designer2.ProbeFilter()
+filterer = probe_designer.intron_designer.ProbeFilter()
 
 ####### Filter Probes  #############
 dbs = ["sqlite:///db/intron_probes_10k_2.db"]
 
 # Open Filtered Probe Database
-filterer = probe_designer.intron_designer2.ProbeFilter()
+filterer = probe_designer.intron_designer.ProbeFilter()
 intron_db_filtered = dataset.connect(
     "sqlite:///db/intron_probes_filtered_10k_2.db")
 filtered_probe_table = intron_db_filtered['mouse']
