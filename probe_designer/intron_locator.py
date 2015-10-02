@@ -24,44 +24,17 @@ def get_exon_pos():
     return exon_space
 
 
-class IntronGetter(object):
+from sequence_getter import SequenceGetter
+class IntronGetter(SequenceGetter):
     """
     Gets introns from refgenome table
     """
-
-    def get_range(self, sequence, min_size=20):
-        #Find longest contiguous sequences
-        ranges = []
-        for k, g in groupby(enumerate(sequence), lambda (i, x): i - x):
-            group = map(itemgetter(1), g)
-            start = group[0]
-            end = group[-1]
-            if end - start > min_size:
-                ranges.append((start, end))
-        return ranges
-
-    def get_positions(self, gene):
-        """
-        Finds position of exons for gene
-        """
-        if gene['strand'] == '+':
-            start = int(gene['txStart'])
-            end = int(gene['txEnd'])
-            e_start = map(int, gene['exonStarts'].strip(',').split(","))
-            e_end = map(int, gene['exonEnds'].strip(',').split(","))
-        elif gene['strand'] == '-':
-            # Flip things around
-            start = int(gene['txEnd'])
-            end = int(gene['txStart'])
-            e_end = map(int, gene['exonStarts'].strip(',').split(","))[::-1]
-            e_start = map(int, gene['exonEnds'].strip(',').split(","))[::-1]
-        return (start, end, e_start, e_end)
 
     def get_intron(self, gene_isoforms, in_all=False):
         rna_set = []
         for gene in gene_isoforms:
             to_flatten = []
-            tx_start, tx_end, e_start, e_end = self.get_positions(gene)
+            tx_start, tx_end, e_start, e_end, cds_start, cds_end = self.get_positions(gene)
             to_flatten.append((tx_start, e_start[0]))  # Add first intron
             to_flatten.append((e_end[-1], tx_end))  # Add last intron
             to_flatten += list(zip(e_end[:-1],
@@ -103,12 +76,7 @@ class IntronGetter(object):
         }
 
     def __init__(self, table=None, in_all=False):
-        if table is None:
-            db = dataset.connect("sqlite:///db/refGene.db")
-            self.table = db['mouse']
-        else:
-            self.table = table
-        self.tot_records = len(list(self.table.distinct('name2')))
+        super(IntronGetter, self).__init__(table=table)
         self.in_all = in_all
         with open('db/exon_pos.json', 'r') as f_in:
             self.exons = json.load(f_in)
