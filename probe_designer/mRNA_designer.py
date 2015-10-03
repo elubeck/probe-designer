@@ -30,7 +30,7 @@ def sub_seq_splitter(seq, size,
     """
     Takes sequence and designs best probes of given size closests to gc_target.
     """
-    assert (isinstance(seq, unicode))
+    assert (isinstance(seq, str))
     # Generate all probes
     # Probes start and ending position includes spacing.
     probes = []
@@ -60,7 +60,7 @@ def sub_seq_splitter(seq, size,
                 if any(probe_ind & probe_indices[i]):
                     overlapping[probes[probe_n]['seq']].append(probes[i])
     overlapping_b = copy.deepcopy(overlapping)
-    for k, v in overlapping.iteritems():
+    for k, v in overlapping.items():
         pl = seq_lookup[k]
         for i2 in v:
             overlapping_b[i2['seq']].append(pl)

@@ -24,7 +24,7 @@ def probe_set_refiner(pset_i, block_size=18):
                 p_lookup[probe[i:i + block_size]].append(gene)
                 flat_pfrags.append(probe[i:i + block_size])
     # Get probes that hit multiple targets
-    counts = [(k, v) for k, v in Counter(flat_pfrags).iteritems() if v > 1]
+    counts = [(k, v) for k, v in Counter(flat_pfrags).items() if v > 1]
     counts = [(bad_probe, n_hits) for bad_probe, n_hits in counts
               if len(set(p_lookup[bad_probe])) > 1]
     for probe, n_hits in counts:

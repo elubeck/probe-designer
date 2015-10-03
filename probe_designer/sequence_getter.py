@@ -15,7 +15,7 @@ class SequenceGetter(object):
         #Find longest contiguous sequences
         sequence = sorted(sequence)
         ranges = []
-        for k, g in groupby(enumerate(sequence), lambda (i, x): i - x):
+        for k, g in groupby(enumerate(sequence), lambda x: x[0] - x[1]):
             group = [itemgetter(1)(v) for v in g]
             start = group[0]
             end = group[-1]
