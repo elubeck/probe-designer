@@ -29,7 +29,7 @@ def local_blast_query(query, db='gencode_tracks_reversed', strand='both'):
     :param strand: Strand to search.  Default is both.  Options: plus, minus, both
     :return: a handle to an xml formatted blast result
     """
-    output_handle = NamedTemporaryFile(suffix='.xml')
+    output_handle = NamedTemporaryFile(mode='w+', suffix='.xml', encoding='utf-8')
     with NamedTemporaryFile("w") as f:
         f.write(query)
         f.flush()

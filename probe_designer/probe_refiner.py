@@ -18,7 +18,7 @@ def probe_set_refiner(pset_i, block_size=18):
     pset = copy.deepcopy(pset_i)
     p_lookup = defaultdict(list)
     flat_pfrags = []
-    for gene, probes in pset.iteritems():
+    for gene, probes in pset.items():
         for probe in probes:
             for i in range(0, len(probe) - block_size):
                 p_lookup[probe[i:i + block_size]].append(gene)
@@ -106,7 +106,7 @@ class ProbeFilter(object):
         drop_self = True: make sure probes that probes that hit themselves are not counted in blast tally
         """
         hit_vals = []
-        for probe_name, matches in hits.iteritems():
+        for probe_name, matches in hits.items():
             gene_name = probe_name.split(",")[0].lower()
             if any(matches):  # Added incase no matches
                 gencode_id, refseq = map(list, zip(*[match.lower().split(',')
@@ -132,7 +132,7 @@ class ProbeFilter(object):
         if not strand:
             strand = self.strand
         fasta_str = "\n".join(">{}\n{}".format(*items)
-                              for items in probe_lookup.iteritems())
+                              for items in probe_lookup.items())
         res = blaster.local_blast_query(fasta_str, db=db)
         hits = blaster.parse_hits(res,
                                    strand=strand,

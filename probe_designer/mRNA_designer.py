@@ -180,7 +180,6 @@ def batch_design(genes, max_time=180):
 
 def design_step(gene, max_time=180, cds_only=False):
     rr = RNARetriever2()
-    probes = []
     try:
         with timeout(seconds=max_time):
             try:
@@ -193,13 +192,14 @@ def design_step(gene, max_time=180, cds_only=False):
             except:
                 print("Record lookup fail at {}".format(gene))
                 return ("FAILED", [], [])
-            for chunk in gene_records:
-                for probe in sub_seq_splitter(str(chunk), 35, gc_min=0.35, ):
-                    probes.append(probe)
-            return gene, probes, gene_records
     except TimeoutError:
         print("Timedout at {}".format(gene))
         return ("FAILED", [], [])
+    probes = []
+    for chunk in gene_records:
+        for probe in sub_seq_splitter(str(chunk), 35, gc_min=0.35, ):
+            probes.append(probe)
+    return gene, probes, gene_records
 
 
 def batch_design2(genes,
