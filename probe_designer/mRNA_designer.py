@@ -101,11 +101,15 @@ def sub_seq_splitter(seq, size,
                       for probe_seq in probe_group]
                 om = sorted(om, key=lambda x: len(x[1]), reverse=True)
                 # If worst probe doesn't overlap any other probes
-                if len(om[0][1]) == 0:
+                if not any(om) or not any(om[0][1]):
                     break
+                # if len(om[0][1]) == 0:
+                #     break
                 # Otherwise throw out worst probe
                 else:
                     probe_group = [probe_seq for probe_seq, overind in om[1:]]
+                if not any(probe_group): # Is this correct?
+                    break
                 n_iters += 1
             probe_group = [probe_seq for probe_seq, overind in om[1:]]
         for probe_seq in probe_group:
@@ -178,7 +182,7 @@ def batch_design(genes, max_time=180):
     return gene_probes
 
 
-def design_step(gene, max_time=180, cds_only=False):
+def design_step(gene, max_time=180, cds_only=False, length=35, debug=True):
     rr = RNARetriever2()
     try:
         with timeout(seconds=max_time):
@@ -197,7 +201,7 @@ def design_step(gene, max_time=180, cds_only=False):
         return ("FAILED", [], [])
     probes = []
     for chunk in gene_records:
-        for probe in sub_seq_splitter(str(chunk), 35, gc_min=0.35, ):
+        for probe in sub_seq_splitter(str(chunk), length, gc_min=0.35, debug=debug):
             probes.append(probe)
     return gene, probes, gene_records
 
@@ -205,7 +209,9 @@ def design_step(gene, max_time=180, cds_only=False):
 def batch_design2(genes,
                   max_time=180,
                   cds_only=False,
-                  db_name='mrna_probes_full_tx'):
+                  db_name='mrna_probes_full_tx',
+                  length=35,
+                  debug=True):
     db = dataset.connect("sqlite:///db/{}.db".format(db_name))
     p_table = db['unfiltered_probes']
     cds_table = db['cds_table']
@@ -217,7 +223,7 @@ def batch_design2(genes,
     gene_probes = {}
     from multiprocessing import Pool, cpu_count
     from functools import partial
-    d_wrap = partial(design_step, max_time=max_time, cds_only=cds_only)
+    d_wrap = partial(design_step, max_time=max_time, cds_only=cds_only, length=length, debug=debug)
     p = Pool(cpu_count())
     for n, vals in enumerate(p.imap(d_wrap, gi)):
         gene, probes, gene_records = vals
