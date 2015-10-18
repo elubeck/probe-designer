@@ -186,8 +186,12 @@ class OligoChip(object):
         with order_file.open("w", encoding='utf-8') as f_out:
             cv = csv.writer(f_out)
             for name, s_seqs in self.seqs.items():
-                for n, o in self.add_pgk1(s_seqs):
+                for n, o in s_seqs:
+                    # for n, o in self.add_pgk1(s_seqs):
                     cv.writerow([n, "".join(o.split())])
+            # Send add_pgk1 an emptry list as a hack to use old version of code
+            for n, o in self.add_pgk1([]):
+                cv.writerow([n, "".join(o.split())])
             cv.writerow(['Control', self.control_seq])
 
     def __init__(self, primers=None):
