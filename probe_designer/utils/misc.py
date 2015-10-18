@@ -19,3 +19,8 @@ def n_probes(chunk_list, probe_size=35):
 def reverse_complement(seq):
     complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
     return "".join(complement[c] for c in seq.upper())[::-1]
+
+
+def complement(seq):
+    complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
+    return "".join(complement[c] for c in seq.upper())
