@@ -1,8 +1,5 @@
-from __future__ import division, print_function, with_statement
-
 import csv
 import os
-import signal
 from itertools import groupby
 from multiprocessing import cpu_count
 from random import getrandbits
@@ -13,8 +10,6 @@ import dataset
 import pandas as pd
 import psutil
 from sh import oligoarray_cl as oligoarray
-from utils.timeout import timeout
-
 
 
 class Oligoarray(object):
@@ -111,7 +106,8 @@ class Oligoarray(object):
 
 
 class OligoarrayDesigner(object):
-    def run(self, input_file,
+    def run(self,
+            input_file,
             output_file="temp/output.txt",
             rejected_file="temp/rejected.txt",
             log_file="temp/log.txt",
@@ -159,8 +155,7 @@ class OligoarrayDesigner(object):
             g=min_spacing,
             _bg=True,
             m=prohibited_seqs,
-            _tty_in=True
-            # This was required after adding progressbar.  Don't know why.  Fishy
+            _tty_in=True  # This was required after adding progressbar.  Don't know why.  Fishy
         )
         # This loop doesn't let oligoarray run too long
         # Oligoarray has an issue with rogue blastall processes running forever

@@ -1,4 +1,3 @@
-from builtins import list, range, len, set, enumerate
 from collections import defaultdict, Counter
 import copy
 import csv
@@ -44,7 +43,11 @@ class ProbeFilter(object):
                                          key=lambda x: x[0].split(',')[0]):
             pass
 
-    def filter_probes(self, probe_set, target, hits, probe_lookup,
+    def filter_probes(self,
+                      probe_set,
+                      target,
+                      hits,
+                      probe_lookup,
                       max_hits=10000,
                       off_target_thresh=7,
                       probe_num=48, ):
@@ -126,7 +129,9 @@ class ProbeFilter(object):
         hit_vals = sorted(hit_vals, key=lambda x: x[1], reverse=True)
         return hit_vals
 
-    def run_blast(self, probe_lookup, match_thresh,
+    def run_blast(self,
+                  probe_lookup,
+                  match_thresh,
                   strand=None,
                   db='gencode_tracks_reversed'):
         if not strand:
@@ -135,11 +140,13 @@ class ProbeFilter(object):
                               for items in probe_lookup.items())
         res = blaster.local_blast_query(fasta_str, db=db)
         hits = blaster.parse_hits(res,
-                                   strand=strand,
-                                   match_thresh=match_thresh)
+                                  strand=strand,
+                                  match_thresh=match_thresh)
         return hits
 
-    def run(self, flat_probes, gene_name,
+    def run(self,
+            flat_probes,
+            gene_name,
             match_thresh=18,
             n_probes=48,
             max_off_target=10000):
@@ -152,7 +159,9 @@ class ProbeFilter(object):
         }
         res = self.run_blast(probe_lookup, match_thresh, db=self.db)
         hit_vals = self.blast2copynum(res)
-        filtered_probes = self.filter_probes(hit_vals, gene_name, res,
+        filtered_probes = self.filter_probes(hit_vals,
+                                             gene_name,
+                                             res,
                                              probe_lookup,
                                              probe_num=n_probes,
                                              max_hits=max_off_target)
@@ -189,4 +198,3 @@ class ProbeFilter(object):
                 }
         else:
             raise Exception('need a valid copy_num database')
-

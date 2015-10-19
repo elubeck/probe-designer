@@ -1,8 +1,6 @@
 __author__ = 'Eric'
 from utils.misc import reverse_complement
 from pathlib import Path
-import zipfile
-from tempfile import TemporaryDirectory, NamedTemporaryFile
 import csv
 from itertools import groupby
 import datetime

@@ -1,7 +1,4 @@
-from __future__ import print_function, division
 import dataset
-from operator import itemgetter
-from itertools import groupby
 from collections import defaultdict
 import json
 
@@ -25,6 +22,8 @@ def get_exon_pos():
 
 
 from sequence_getter import SequenceGetter
+
+
 class IntronGetter(SequenceGetter):
     """
     Gets introns from refgenome table
@@ -34,15 +33,15 @@ class IntronGetter(SequenceGetter):
         rna_set = []
         for gene in gene_isoforms:
             to_flatten = []
-            tx_start, tx_end, e_start, e_end, cds_start, cds_end = self.get_positions(gene)
+            tx_start, tx_end, e_start, e_end, cds_start, cds_end = self.get_positions(
+                gene)
             to_flatten.append((tx_start, e_start[0]))  # Add first intron
             to_flatten.append((e_end[-1], tx_end))  # Add last intron
-            to_flatten += list(zip(e_end[:-1],
-                                   e_start[1:]))  # Add all remaining introns
+            to_flatten += list(zip(e_end[:-1], e_start[1:]))  # Add all remaining introns
             intron_pos = {
                 p
-                for end, start in to_flatten
-                for p in range(*sorted([end + 1, start + 1]))
+                for end, start in to_flatten for p in range(*sorted(
+                    [end + 1, start + 1]))
             }
             rna_set.append(intron_pos)
 
@@ -50,8 +49,7 @@ class IntronGetter(SequenceGetter):
         conserved_regions = set.intersection(*rna_set)
 
         # Make set of points that are only intron1, not any other exons
-        exon_pos = self.exons[gene['chrom']
-                              ]  # Get all the exons for chromosome
+        exon_pos = self.exons[gene['chrom']]  # Get all the exons for chromosome
         non_overlapping = sorted(conserved_regions.difference(exon_pos))
 
         rna_regions = [contiguous_frag
@@ -72,7 +70,8 @@ class IntronGetter(SequenceGetter):
             'chrom': hits[0]['chrom'],
             'strand': hits[0]['strand'],
             'name2': gene,
-            'introns': self.get_intron(hits, in_all = self.in_all)
+            'introns': self.get_intron(hits,
+                                       in_all=self.in_all)
         }
 
     def __init__(self, table=None, in_all=False):
