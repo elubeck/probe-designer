@@ -1,4 +1,3 @@
-from __future__ import print_function, division
 import csv
 from collections import defaultdict
 
@@ -18,7 +17,9 @@ def local_blast_query(query, db='gencode_tracks_reversed', strand='both'):
     :param strand: Strand to search.  Default is both.  Options: plus, minus, both
     :return: a handle to an xml formatted blast result
     """
-    output_handle = NamedTemporaryFile(mode='w+', suffix='.xml', encoding='utf-8')
+    output_handle = NamedTemporaryFile(mode='w+',
+                                       suffix='.xml',
+                                       encoding='utf-8')
     with NamedTemporaryFile("w") as f:
         f.write(query)
         f.flush()
@@ -78,5 +79,3 @@ def get_copynum(hits):
     off_target = {name: counts[name] for name in hits if name in counts.keys()}
     false_hits = sum(off_target.values())
     return false_hits
-
-
