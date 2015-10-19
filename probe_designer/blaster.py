@@ -1,21 +1,10 @@
 from __future__ import print_function, division
 import csv
-import collections
-import signal
-import sys
-from collections import Counter, defaultdict
-from time import sleep
-from itertools import groupby
-from collections import Counter
-import random
+from collections import defaultdict
 
-import dataset
-import pandas as pd
-from Bio.Blast import NCBIWWW, NCBIXML
+from Bio.Blast import NCBIXML
 from Bio.Blast.Applications import NcbiblastnCommandline as blastn
-from future.builtins import object
 from tempfile import NamedTemporaryFile
-from utils.misc import gc_count
 
 # Get merged embryonic 11.5 encode data
 with open('db/encode_counts.csv', 'r') as f:
