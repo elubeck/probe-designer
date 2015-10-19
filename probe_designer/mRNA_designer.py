@@ -1,6 +1,3 @@
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-from builtins import *
 import copy
 import csv
 import sys
@@ -15,12 +12,13 @@ from Bio.SeqRecord import SeqRecord
 from progressbar import ProgressBar
 from sequence_getter import SequenceGetter
 from utils.timeout import timeout
-from utils.misc import  gc_count
+from utils.misc import gc_count
 
 csv.field_size_limit(sys.maxsize)  # Prevent field size overflow.
 
 
-def sub_seq_splitter(seq, size,
+def sub_seq_splitter(seq,
+                     size,
                      gc_target=0.55,
                      stride=1,
                      spacing=2,
@@ -108,7 +106,7 @@ def sub_seq_splitter(seq, size,
                 # Otherwise throw out worst probe
                 else:
                     probe_group = [probe_seq for probe_seq, overind in om[1:]]
-                if not any(probe_group): # Is this correct?
+                if not any(probe_group):  # Is this correct?
                     break
                 n_iters += 1
             probe_group = [probe_seq for probe_seq, overind in om[1:]]
@@ -170,7 +168,8 @@ def batch_design(genes, max_time=180):
                     failed.append(gene)
                 cds_records[gene] = gene_records
                 for chunk in cds_records[gene]:
-                    for probe in sub_seq_splitter(str(chunk), 35,
+                    for probe in sub_seq_splitter(str(chunk),
+                                                  35,
                                                   gc_min=0.35, ):
                         gene_probes[gene].append(probe)
                     flat_p = [{'target': gene,
@@ -201,7 +200,10 @@ def design_step(gene, max_time=180, cds_only=False, length=35, debug=True):
         return ("FAILED", [], [])
     probes = []
     for chunk in gene_records:
-        for probe in sub_seq_splitter(str(chunk), length, gc_min=0.35, debug=debug):
+        for probe in sub_seq_splitter(str(chunk),
+                                      length,
+                                      gc_min=0.35,
+                                      debug=debug):
             probes.append(probe)
     return gene, probes, gene_records
 
@@ -223,7 +225,11 @@ def batch_design2(genes,
     gene_probes = {}
     from multiprocessing import Pool, cpu_count
     from functools import partial
-    d_wrap = partial(design_step, max_time=max_time, cds_only=cds_only, length=length, debug=debug)
+    d_wrap = partial(design_step,
+                     max_time=max_time,
+                     cds_only=cds_only,
+                     length=length,
+                     debug=debug)
     p = Pool(cpu_count())
     for n, vals in enumerate(p.imap(d_wrap, gi)):
         gene, probes, gene_records = vals
@@ -273,8 +279,8 @@ class RNAGetter(SequenceGetter):
                  for pos in zip(e_end[:-1], e_start[1:])})
 
         # Get Regions in Every Isoform
-        conserved_regions = sorted(set.intersection(*(set(v)
-                                                      for v in rna_set)))
+        conserved_regions = sorted(set.intersection(*(set(v) for v in rna_set
+                                                      )))
         all_unions = set.intersection(*exon_unions)
         contigs = sorted(self.get_range(conserved_regions))
         union_lookup = dict((k, v + 1) for k, v in all_unions)
@@ -327,8 +333,6 @@ class RNAIterator(RNAGetter):
 
     def __init__(self, ):
         super(self.__class__, self).__init__()
-
-
 
 
 class RNARetriever2(object):
