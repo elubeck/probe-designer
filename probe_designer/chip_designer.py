@@ -157,6 +157,13 @@ class OligoChip(object):
         def sort_key(i):
             return i[0]
 
+        flat_seqs = [o for name, s_seqs in self.seqs.items() for n, o in s_seqs
+                     ]
+        for n, o in self.add_pgk1([]):
+            flat_seqs.append(o)
+
+        assert (len(flat_seqs) <= 92918)
+
         # Write out primers
         with primer_file.open("w", encoding='utf-8') as f_out:
             p_file = csv.writer(f_out)
@@ -195,6 +202,10 @@ class OligoChip(object):
     def __init__(self, primers=None):
         if primers:
             self.primers = primers
+
+    def __len__(self):
+        return len([oligo for oligos in self.seqs.values() for oligo in oligos
+                    ])
 
 
 if __name__ == "__main__":
