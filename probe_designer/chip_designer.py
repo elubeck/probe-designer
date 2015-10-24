@@ -79,7 +79,8 @@ class OligoChip(object):
                    name,
                    primer_n=None,
                    f_cut_enzyme='',
-                   r_cut_enzyme=''):
+                   r_cut_enzyme='',
+                   replicates=1):
         if primer_n is None:
             primer_pair = self.primers[self.primer_ind]
             self.primer_ind += 1
@@ -107,19 +108,22 @@ class OligoChip(object):
         if any((f_cut_primer, r_cut_primer)):
             self.cutting_oligos[name] = (f_cut_primer, r_cut_primer)
         seqs = []
-        for o_name, oligo in oligo_list:
-            vars = {
-                'f_primer': primer_pair[0],
-                'f_cutting': f_cut,
-                'f_spacer': f_spacer,
-                'seq': oligo,
-                'r_spacer': r_spacer,
-                'r_cutting': r_cut,
-                'r_primer': primer_pair[1]
-            }
-            seq = "{f_primer} {f_cutting} {f_spacer} {seq} {r_spacer} {r_cutting} {r_primer}".format(
-                **vars)
-            seqs.append((o_name, seq))
+        for replicate in range(replicates):
+            for o_name, oligo in oligo_list:
+                vars = {
+                    'f_primer': primer_pair[0],
+                    'f_cutting': f_cut,
+                    'f_spacer': f_spacer,
+                    'seq': oligo,
+                    'r_spacer': r_spacer,
+                    'r_cutting': r_cut,
+                    'r_primer': primer_pair[1]
+                }
+                seq = "{f_primer} {f_cutting} {f_spacer} {seq} {r_spacer} {r_cutting} {r_primer}".format(
+                    **vars)
+                if replicates != 1:
+                    o_name = "{}-{}".format(o_name, replicate + 1)
+                seqs.append((o_name, seq))
         self.seqs[name] = seqs
 
     def add_pgk1(self, oligos):
@@ -135,8 +139,7 @@ class OligoChip(object):
                 }, 'Split PGK1-Color{}-#{}'.format(cn, n)))
 
         for name, primer_pair in self.used_primers.items():
-            f_primer, r_seq = primer_pair[0], reverse_complement(primer_pair[
-                1])
+            f_primer, r_seq = primer_pair[0], primer_pair[1]
             primer_dict = {'f_primer': f_primer, 'r_primer': r_seq}
             for template, name in split_pgk1_template:
                 template.update(primer_dict)
@@ -145,13 +148,7 @@ class OligoChip(object):
 
     def output_chip(self, folder_name="", zip=False):
         # Make an archive storing all files
-        if not folder_name:
-            folder_name = str(datetime.datetime.now().date())
-        out_dir = Path("output").joinpath(folder_name)
-        try:
-            out_dir.mkdir()
-        except FileExistsError:
-            pass
+        out_dir = self.out_dir
         primer_file = out_dir.joinpath("primers.csv")
 
         def sort_key(i):
@@ -170,13 +167,19 @@ class OligoChip(object):
             primers = sorted(list(self.used_primers.items()) +
                              list(self.cutting_oligos.items()),
                              key=sort_key)
-            p_file.writerow(['F', 'R', 'T7', 'F Cutting', 'R Cutting', ])
+            p_file.writerow(['name',
+                             'F',
+                             'R',
+                             'T7',
+                             'F Cutting',
+                             'R Cutting', ])
             for name, oligos in groupby(primers, key=sort_key):
                 oligos = [oligo
                           for nv, oligo_pair in oligos for oligo in oligo_pair]
-                t7_primer = (self.t7_sequence + oligos[1])  # T7 + Reverse Primer
-                oligo_seq = oligos[:2] + [t7_primer] + oligos[2:]
-                p_file.writerow(oligo_seq)
+                t7_primer = (self.t7_sequence + reverse_complement(oligos[1]))  # T7 + Reverse Primer
+                oligo_seq = [oligos[0]] + [reverse_complement(oligos[1])
+                                           ] + [t7_primer] + oligos[2:]
+                p_file.writerow([name] + oligo_seq)
 
         # Write out unformatted sequences
         for name, s_seqs in self.seqs.items():
@@ -199,9 +202,16 @@ class OligoChip(object):
                 cv.writerow([n, "".join(o.split())])
             cv.writerow(['Control', self.control_seq])
 
-    def __init__(self, primers=None):
+    def __init__(self, primers=None, folder_name=None):
         if primers:
             self.primers = primers
+        if not folder_name:
+            folder_name = str(datetime.datetime.now().date())
+        self.out_dir = Path("output").joinpath(folder_name)
+        try:
+            self.out_dir.mkdir()
+        except FileExistsError:
+            pass
 
     def __len__(self):
         return len([oligo for oligos in self.seqs.values() for oligo in oligos
