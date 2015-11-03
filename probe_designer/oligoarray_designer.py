@@ -1,108 +1,11 @@
 import csv
-import os
-from itertools import groupby
 from multiprocessing import cpu_count
-from random import getrandbits
 from time import sleep
-
+from tempfile import NamedTemporaryFile
 import arrow
-import dataset
-import pandas as pd
 import psutil
 from sh import oligoarray_cl as oligoarray
 
-
-class Oligoarray(object):
-    def check_db(self, gene, masking):
-        res = self.table.find(Name=gene,
-                              Variants=self.variants,
-                              Masking=masking)
-        passed = []
-        for item in res:
-            if arrow.get(item['Date']) >= self.date.replace(years=-1):
-                item['Probes'] = pd.DataFrame(
-                    list(self.p_table.find(ProbeID=item['ProbeID'])))
-                passed.append(item)
-        return passed
-
-    def write_db(self, probes):
-        probes['ProbeID'] = getrandbits(50)
-        probes['Date'] = arrow.now().datetime
-        probes['Variants'] = self.variants
-        probe_df = probes.pop('Probes')
-        self.table.insert(probes)
-        probe_df['ProbeID'] = probes['ProbeID']
-        for k, probe in probe_df.T.to_dict().items():
-            self.p_table.insert(probe)
-
-    def check_database(self, gene, mask_range=(5, )):
-        probe_set = [
-            p for p in [self.check_db(gene, mask) for mask in mask_range] if p
-        ]
-        if probe_set:
-            for probe in probe_set:
-                probes.append(probe)
-                pl = [pd.concat([p['Probes'] for p in probe],
-                                ignore_index=True).shape[0]
-                      for probe in probe_set]
-            print("Found unblasted probeset for {} with {} probes".format(gene,
-                                                                          pl))
-        return probe_set
-
-    def design(self, cds, ml=30, Ml=30, max_tm=100, x_hyb=72):
-        probes = []
-        fasta = FastaFile()
-        fake_mask = 11
-        for gene, data in cds.items():
-            probe_set = self.check_db(gene, fake_mask)
-            if probe_set:
-                probes.extend(probe_set)
-                print("Found {}".format(gene))
-                continue
-            for n, seq in enumerate(data['CDS List']):
-                if len(seq) < 20:
-                    continue
-                print("Adding {} cds #{} to design list".format(gene, n))
-                #TODO: Put probe design here
-                temp_name = "{}${}${}".format(gene, n, data['# Isoforms'])
-                fasta.add_seq(temp_name, seq)
-        od = OligoarrayDesigner()
-        results = od.run(fasta.location,
-                         min_length=ml,
-                         max_length=Ml,
-                         min_tm=70,
-                         max_tm=100,
-                         cross_hyb_temp=x_hyb,
-                         secondary_struct_temp=76,
-                         min_gc=35,
-                         max_gc=70)
-        for seq_code, table in results:
-            seq = fasta.seqs[seq_code]
-            codename = fasta.codes[seq_code]
-            name, cds_region, num_isoform = codename.split('$')
-            print(seq_code, codename, name)
-            table['Name'] = table['Name'].map(lambda x: fasta.codes[x])
-            probes.append({
-                'Name': name,
-                'Masking': fake_mask,
-                'Target Seq': seq,
-                'Probes': table,
-                'CDS Region #': n,
-                '# isoforms': data['# Isoforms'],
-            })
-            self.write_db(probes[-1])
-            print("Designed %i probes for %s cds#:%i with masking %i" %
-                  (len(table), name, n, fake_mask))
-        fasta.close()
-        return probes
-
-    def __init__(self, organism="mouse", variants=True):
-        self.organism = organism
-        self.variants = variants
-        self.db = dataset.connect("sqlite:///db/oligoarray.db")
-        self.date = arrow.now()
-        self.table = self.db[organism]
-        self.p_table = self.db['probes']
 
 
 class OligoarrayDesigner(object):
@@ -205,16 +108,9 @@ class OligoarrayDesigner(object):
         tot_time = (arrow.utcnow() - start_time).total_seconds()
         # print("Design took : {:.02f}".format(tot_time))
 
-        p = []
-        r_val = sorted(results.parse(), key=lambda x: x['Name'])
-        for name, passed_probe in groupby(r_val, lambda x: x['Name']):
-            so_probes = sorted(passed_probe,
-                               key=lambda x: x['Probe Position*'])
-            probes_table = pd.DataFrame(so_probes)
-            probes_table['Probe #'] = probes_table.index
-            p.append((name, probes_table))
+        res = results.parse()
         results.close()
-        return p
+        return res
 
     def __init__(self,
                  blast_db="/home/eric/blastdb/old_format/mouse_refseq_rnaDB"):
@@ -243,88 +139,13 @@ class OligoArrayResults(object):
                         failed.append(row)
                         continue
                     results.append({
-                        "Name": name,
-                        'Probe Position*': int(row[1]),
-                        "Probe (5'-> 3')": row[-1],
-                        "Percent GC": "NA",
-                        "TM_DNA": float(row[-3]),
-                        "Blast": '\t'.join(row)
+                        "target": name,
+                        "seq": row[-1],
                     })
                 else:
                     failed.append(row)
-            # print("Rows: {}, Passed: {}, Failed: {}".format(n + 1,
-            #                                                 len(results),
-            #                                                 len(failed)))
         return results
 
     def __init__(self, ):
-        from tempfile import NamedTemporaryFile
         self.file = NamedTemporaryFile('w')
 
-
-class FastaFile(object):
-    def to_fasta(self, gene, seq):
-        return ">{}\n{}\n".format(gene, seq)
-
-    def add_seq(self, gene, seq):
-        seq_code = str(getrandbits(50))
-        self.codes[seq_code] = gene
-        self.seqs[seq_code] = seq
-        fasta_seq = self.to_fasta(seq_code, seq)
-        with open(self.location, "a") as f:
-            f.write(fasta_seq)
-
-    def close(self):
-        os.remove(self.location)
-
-    def __init__(self, location="temp/temp_fasta.fasta"):
-        self.location = location
-        self.seqs = {}
-        self.codes = {}
-        try:
-            self.close()
-        except:
-            pass
-        with open(self.location, "w") as f:
-            f.write("")
-
-
-seq = """
-ATGGCCGAGAATGTGGTGGAACCCGGGCCGCCTTCAGCCAAGCGGCCTAAACTCTCATCTCCGGCCCTCT
-CGGCGTCCGCCAGCGATGGCACAGATTTTGGTTCACTGTTTGACCTGGAACATGACTTACCAGATGAATT
-AATCAACTCTACAGAATTGGGACTAACCAATGGTGGCGATATCAGTCAGCTTCAGACAAGTCTTGGCATA
-GTACAAGATGCAGCCTCGAAACATAAACAGCTGTCAGAACTGCTGAGGTCTGGTAGCTCCCCAAACCTCA
-ACATGGGAGTCGGTGGCCCAGGCCAAGCGATGGCCAGCCAGGCCCAACAGAACAGCCCTGGATTAAGTTT
-GATAAATAGCATGGTCAAAAGCCCAATGGCACAGACAGGCTTGACTTCTCCAAACATGGGGATTGGCAGT
-AGTGGACCAAATCAGGGTCCTACTCAGTCCCCAGCAGGTATGATGAACAGTCCAGTGAACCAGCCTGCCA
-TGGGAATGAACACAGGGATGAATGCTGGCATGAATCCTGGAATGTTGGCTGCAGGCAATGGACAAGGGAT
-AATGCCCAATCAAGTCATGAACGGTTCCATTGGAGCAGGCCGGGGACGGCCAAACATGCAGTACCCAAAT
-GCAGGCATGGGCAATGCTGGCAGTTTATTGACTGAGCCACTACAGCAGGGCTCTCCTCAGATGGGAGGAC
-AGCCAGGATTGAGAGGCCCCCAACCACTTAAGATGGGAATGATGAACAATCCCAGTCCTTATGGTTCACC
-ATACACTCAGAATTCTGGACAGCAGATTGGAGCAAGTGGCCTTGGTCTCCAAATTCAGACAAAGACTGTT
-CTACCAAATAACTTATCTCCATTTGCAATGGACAAAAAGGCAGTTCCTGGTGGGGGAATGCCCAGTATGG
-GCCAGCAGCCTACCCCATCGGTCCAGCAGCCAGGCCTGGTGACTCCAGTTGCCGCAGGAATGGGTTCTGG
-AGCACACACAGCTGATCCAGAGAAGCGCAAGCTCATCCAGCAGCAGCTTGTTCTCCTTTTACATGCTCAC
-AAGTGCCAGCGCCGGGAGCAAGCTAATGGGGAAGTGAGGCAGTGCAACCTTCCTCACTGTCGTACCATGA
-"""
-
-
-def test(seq):
-    fasta = FastaFile()
-    fasta.add_seq("gi|123173876:416-7654", seq)
-    fasta.add_seq("gi|123173876:416-7654", seq)
-    fasta.add_seq("gi|123173876:416-7654", seq)
-    fasta.add_seq("gi|123173876:416-7654", seq)
-    fasta.add_seq("gi|123173876:416-7654", seq)
-    od = OligoarrayDesigner()
-    # od.run(fasta.location)
-    od.run(fasta.location,
-           min_tm=70,
-           max_tm=100,
-           cross_hyb_temp=72,
-           secondary_struct_temp=76,
-           min_gc=35,
-           max_gc=70)
-    results = OligoArrayResults("temp/output.txt")
-
-# test(seq)

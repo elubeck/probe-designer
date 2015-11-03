@@ -194,10 +194,7 @@ def design_introns(reversed=False):
                             secondary_struct_temp=76,
                             max_oligos=100,
                             timeout=15)
-            for name, probes in res:
-                probes['Percent GC'] = 100 * probes["Probe (5'-> 3')"].map(
-                    gc_count)
-                probe_db.insert_many(probes.T.to_dict().values())
+            probe_db.insert_many(res)
             p_bar.update(n)
             chunks = []
     p_bar.finish()
