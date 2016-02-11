@@ -119,53 +119,7 @@ def sub_seq_splitter(seq,
     return passed_probes
 
 
-def batch_design(genes, max_time=180):
-    db = dataset.connect("sqlite:///db/mrna_probes.db")
-    p_table = db['unfiltered_probes']
-    cds_table = db['cds_table']
-    mr = mRNARetriever()
-    cds_records = {}
-    gene_probes = defaultdict(list)
-    pbar = ProgressBar(maxval=len(genes)).start()
-    failed = []
-    used = {g['target'] for g in p_table.distinct('target')}
-    for n, gene in enumerate(genes):
-        pbar.update(n)
-        if gene in used:
-            print("Found {}".format(gene))
-            gene_probes[gene] = [probe['seq']
-                                 for probe in p_table.find(target=gene)]
-            continue
-        try:
-            with timeout(seconds=max_time):
-                try:
-                    gene_records = [
-                        str(record.seq.reverse_complement())
-                        for record in mr.get_mRNA(gene,
-                                                  chunk_size=100000)
-                    ]
-                    rec_table = [
-                        {"target": gene,
-                         "seq": cds,
-                         "number": rec_num}
-                        for rec_num, cds in enumerate(gene_records)
-                    ]
-                    cds_table.insert_many(rec_table)
-                except:
-                    failed.append(gene)
-                cds_records[gene] = gene_records
-                for chunk in cds_records[gene]:
-                    for probe in sub_seq_splitter(str(chunk),
-                                                  35,
-                                                  gc_min=0.35, ):
-                        gene_probes[gene].append(probe)
-                    flat_p = [{'target': gene,
-                               'seq': probe} for probe in gene_probes[gene]]
-                    p_table.insert_many(flat_p)
-        except TimeoutError:
-            print("Timedout at {}".format(gene))
-    pbar.finish()
-    return gene_probes
+
 
 
 def design_step(gene, max_time=180, cds_only=False, length=35, debug=True):
