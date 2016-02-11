@@ -150,7 +150,7 @@ def design_step(gene, max_time=180, cds_only=False, length=35, debug=True,
                                       gc_max=gc_max,
                                       debug=debug):
             probes.append(probe)
-    return gene, probes, gene_records
+    return gene, set(probes), gene_records
 
 
 def batch_design2(genes,
