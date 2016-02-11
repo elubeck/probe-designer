@@ -15,7 +15,7 @@ filterer = ProbeFilter(db='gencode_tracks_reversed_introns+mRNA', copy_num='brai
 # probes = filterer.run(probes, name, match_thresh=18, n_probes=48, max_off_target=2000)
 genes = ['Actg1', 'Actr3', 'Adnp', 'atf4', 'atg5', 'B2m', 'Bcl2', 'BDNF',
          'Casp8', 'Cdc42', 'Cebpa', 'Cebpb', 'chat', 'Cited2', 'csf1', 'CSf1r',
-         'dbh', 'Ddc', 'ddit4', 'ddx4', 'Dhx9', 'drd2', 'Fcgr2b', 'gba',
+         'dbh', 'Ddc', 'ddit4', 'ddx4', 'Dhx9', 'drd2', 'Fcgr2b', 'Gba',
          'Hhex', 'Hif1a', 'Huwe1', 'Il1a', 'Il1b', 'Il6', 'Insl3', 'Jak3',
          'Jarid2', 'lamp2', 'lc3b', 'Mapk8', 'marco', 'Nfatc1', 'Nfkbia',
          'Numb', 'Ogt', 'Pag1', 'pdzl', 'Pknox1', 'pnmt', 'Ppia', 'Prkcb',
