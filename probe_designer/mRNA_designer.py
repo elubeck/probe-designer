@@ -122,7 +122,8 @@ def sub_seq_splitter(seq,
 
 
 
-def design_step(gene, max_time=180, cds_only=False, length=35, debug=True):
+def design_step(gene, max_time=180, cds_only=False, length=35, debug=True,
+                spacing=2, gc_target=0.55, gc_min=None, gc_max=None):
     rr = RNARetriever2()
     try:
         with timeout(seconds=max_time):
@@ -143,7 +144,10 @@ def design_step(gene, max_time=180, cds_only=False, length=35, debug=True):
     for chunk in gene_records:
         for probe in sub_seq_splitter(str(chunk),
                                       length,
-                                      gc_min=0.35,
+                                      gc_min=gc_min,
+                                      spacing=spacing,
+                                      gc_target=gc_target,
+                                      gc_max=gc_max,
                                       debug=debug):
             probes.append(probe)
     return gene, probes, gene_records
