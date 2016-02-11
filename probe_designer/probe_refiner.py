@@ -149,7 +149,8 @@ class ProbeFilter(object):
             gene_name,
             match_thresh=18,
             n_probes=48,
-            max_off_target=10000):
+            max_off_target=10000,
+            off_target_hits=6):
         """
         flat_probes is a list of probes.  Sequence only
         """
@@ -165,7 +166,8 @@ class ProbeFilter(object):
                                              res,
                                              probe_lookup,
                                              probe_num=n_probes,
-                                             max_hits=max_off_target)
+                                             max_hits=max_off_target,
+                                             off_target_thresh=off_target_hits)
         finished_probes = [probe_lookup[probe] for probe in filtered_probes]
         return finished_probes
 
