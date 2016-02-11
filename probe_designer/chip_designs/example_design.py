@@ -27,7 +27,7 @@ for gene in genes:
     name = gene[0].upper() + gene[1:]
     name, probes, seq = design_step(name, cds_only=True, length=26, spacing=0,
                                     gc_target=0.55, gc_min=0.35, gc_max=0.75)
-    probes = filterer.run(probes, name, match_thresh=14, n_probes=48, max_off_target=2000)
+    probes = filterer.run(set(probes), name, match_thresh=14, n_probes=48, max_off_target=2000)
     print(gene, len(probes))
     passed[gene] = probes
 
