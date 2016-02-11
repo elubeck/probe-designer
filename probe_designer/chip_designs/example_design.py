@@ -5,7 +5,7 @@ from probe_designer.mRNA_designer import RNARetriever2, design_step
 from probe_designer.probe_refiner import ProbeFilter
 
 retriever = RNARetriever2()
-filterer = ProbeFilter(db='gencode_tracks_reversed+mRNA', copy_num='brain')
+filterer = ProbeFilter(db='gencode_tracks_reversed_introns+mRNA', copy_num='brain')
 
 name, probes, sequence = design_step('Pgk1', cds_only=True, length=35,
                                      spacing=1, gc_target=0.55, gc_min=None, gc_max=None)
