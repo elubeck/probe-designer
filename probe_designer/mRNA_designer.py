@@ -116,19 +116,6 @@ def sub_seq_splitter(seq,
                 disallowed_probes.append(overlapped['seq'])
         probe_index += 1
 
-    # DEBUG_START
-    if debug:
-        passed_or = defaultdict(list)
-        for probe in passed_probes:
-            for probe_m in probes:
-                if probe_m['seq'] == probe:
-                    passed_or[probe].append(probe_m)
-        dog_head = sorted([i['start'] for p in passed_or.values() for i in p])
-        dog_poop = [i2 - i1 for i2, i1 in zip(dog_head[1:], dog_head[:-1])]
-        for v in dog_poop:
-            if v < 37:
-                raise Exception("Probe design fail")
-    # DEBUG_END
     return passed_probes
 
 

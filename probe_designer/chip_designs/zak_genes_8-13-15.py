@@ -6,7 +6,7 @@ from builtins import *
 import dataset
 
 from progressbar import ProgressBar
-from probe_designer.intron_designer import ProbeFilter
+from probe_designer.probe_refiner import ProbeFilter
 import probe_designer.utils.align_probes
 import probe_designer.mRNA_designer
 import probe_designer.probe_refiner
@@ -220,7 +220,7 @@ gene_list = {
 
 dbs = ['es_mrna_probe_cds_only', 'es_mrna_probe_full_tx']
 cds_only = [True, False]
-for db, cds_only in zip(, cds_only):
+for db, cds_only in zip(dbs, cds_only):
     # Design All Genes
     gene_lookup = probe_designer.mRNA_designer.batch_design2(gene_list,
                                               cds_only=cds_only,
@@ -248,7 +248,7 @@ def filter_wrapper(gene):
 
 flat_probes = []
 all_probes = {}
-for db in :
+for db in dbs:
     db_name = "sqlite:///db/{}_filtered.db".format(db)
     probe_db_filtered = dataset.connect(db_name)
     filtered_probe_table = probe_db_filtered['mouse']

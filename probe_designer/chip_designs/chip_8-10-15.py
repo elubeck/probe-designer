@@ -9,7 +9,6 @@ from progressbar import ProgressBar
 from intron_designer2 import ProbeFilter
 import probe_designer.mRNA_designer
 
-
 ####### Brain Genes
 import probe_designer.probe_refiner
 
@@ -24,11 +23,11 @@ cds_only = [True, False]
 for db, cds_only in zip(dbs, cds_only):
     # Design All Genes
     gene_lookup = probe_designer.mRNA_designer.batch_design2(gene_list,
-                                              cds_only=cds_only,
-                                              db_name=db)
+                                                             cds_only=cds_only,
+                                                             db_name=db)
 
-probe_filterer = ProbeFilter(copy_num='brain',
-                             db='gencode_tracks_reversed_introns+mRNA')
+probe_filterer = probefilter(copy_num='brain',
+                             db='gencode_tracks_reversed_introns+mrna')
 
 
 def filter_wrapper(gene):
@@ -39,7 +38,8 @@ def filter_wrapper(gene):
         f_probes = []
         while iters < 5:
             max_off = 1 + iters * 2000
-            f_probes = probe_filterer.run(res, gene,
+            f_probes = probe_filterer.run(res,
+                                          gene,
                                           n_probes=48,
                                           max_off_target=max_off)
             if len(f_probes) >= 24: break
@@ -48,7 +48,7 @@ def filter_wrapper(gene):
     return f_probes
 
 
-print("FILTERING")
+print("filtering")
 flat_probes = []
 all_probes = {}
 for db in dbs:
@@ -66,9 +66,9 @@ for db in dbs:
         for p in filtered_probe_table.distinct('target')
     }
     remaining_genes = set(genes).difference(used_probes)
-    p_bar = ProgressBar(maxval=len(remaining_genes))
-    from multiprocessing import Pool, cpu_count
-    p = Pool(processes=cpu_count())
+    p_bar = progressbar(maxval=len(remaining_genes))
+    from multiprocessing import pool, cpu_count
+    p = pool(processes=cpu_count())
     for n, f_probes in enumerate(p.imap(filter_wrapper, remaining_genes)):
         if any(f_probes):
             filtered_probe_table.insert_many(f_probes)
@@ -76,7 +76,7 @@ for db in dbs:
         p_bar.update(n)
     p_bar.finish()
 
-    # Get Genes with >=24 probes
+    # get genes with >=24 probes
     tall_probes = dict()
     for gene_d in filtered_probe_table.distinct('target'):
         gene = gene_d['target']
@@ -87,7 +87,7 @@ for db in dbs:
             tall_probes[gene] = probes
     all_probes[db] = tall_probes
 
-##### Pick between CDS or full tx
+##### pick between cds or full tx
 from itertools import groupby
 p = [(k, v, db_n)
      for db_n, db in all_probes.iteritems() for k, v in db.iteritems()]
@@ -103,12 +103,12 @@ for gene, vals in groupby(sorted(p), lambda x: x[0]):
         else:
             all_p2[gene] = max(p_dict.values(), key=lambda x: len(x))
 
-# Search for redundant nested sequences
+# search for redundant nested sequences
 p_set2 = probe_designer.probe_refiner.probe_set_refiner(all_p2)
 
 p_set2 = {k: v for k, v in p_set2.items() if len(v) >= 24}
 
-# Blast Everything to check that all probes together don't cause big problems
+# blast everything to check that all probes together don't cause big problems
 flat_probes = [
     {"gene": gene,
      "seq": probe,
@@ -122,26 +122,26 @@ fasta_str = "\n".join(">{name}\n{seq}".format(**probe)
                       for probe in flat_probes)
 blast_hits2 = blaster2.local_blast_query(
     fasta_str,
-    db='gencode_tracks_reversed_introns+mRNA')
+    db='gencode_tracks_reversed_introns+mrna')
 blast_res2 = blaster2.parse_hits(blast_hits2, match_thresh=18, strand=1)
 
 from collections import defaultdict
-# For every gene hit in blast results see what probes hit it
+# for every gene hit in blast results see what probes hit it
 hit_to_probe = defaultdict(list)
 for probe, hits in blast_res2.iteritems():
     for hit in hits:
         hit_to_probe[hit].append(probe)
 
-# Get probes that hit unintended target
+# get probes that hit unintended target
 bad_hits = [(hit, [probe for probe in probes
                    if probe.split('-')[0].lower() not in hit.lower()])
             for hit, probes in hit_to_probe.iteritems()]
 
 bad_hits = sorted([(k, hits) for k, hits in bad_hits if any(hits)],
                   key=lambda x: len(x[1]),
-                  reverse=True)
+                  reverse=true)
 
-# Drop probes if more than thresh probes hit x-target or copy number is greater than c_thresh
+# drop probes if more than thresh probes hit x-target or copy number is greater than c_thresh
 thresh = 5
 c_thresh = 50
 drop_list = []
@@ -154,12 +154,12 @@ for hit, probes in bad_hits:
 
 drop_probes = set(drop_list)
 
-# Make final list of good probes
+# make final list of good probes
 flat_probes_filtered = [probe for probe in flat_probes
                         if probe['name'] not in drop_probes]
 
 from itertools import groupby
-# Count remaining probes
+# count remaining probes
 grouped_probes = [(group, list(probes))
                   for group, probes in groupby(flat_probes_filtered,
                                                key=lambda x: x['gene'])]

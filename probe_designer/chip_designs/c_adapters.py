@@ -1,13 +1,20 @@
-import intron_designer2
+import os
+os.chdir(os.path.split(os.getcwd())[0])
 
-import blaster2
+import probe_refiner
+import blaster
 
-filterer = intron_designer2.ProbeFilter()
+filterer = probe_refiner.ProbeFilter()
 ###### Blast Adapters ###########
 adapters = []
 with open("db/70k_bridges.txt", "r") as f_in:
     for line in f_in:
         adapters.append(line.strip("\n"))
+
+with open("db/30k_bridges.csv", "r") as f_in:
+    for line in f_in:
+        adapters.append(line.strip("\n"))
+
 adapters = list(set(adapters))
 print(len(adapters))
 

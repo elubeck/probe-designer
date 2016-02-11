@@ -153,6 +153,7 @@ class ProbeFilter(object):
         """
         flat_probes is a list of probes.  Sequence only
         """
+        assert (isinstance(flat_probes, set))  # Make sure no probes are repeated
         probe_lookup = {
             "{},{}".format(gene_name, n): probe
             for n, probe in enumerate(flat_probes)

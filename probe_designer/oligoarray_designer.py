@@ -7,7 +7,6 @@ import psutil
 from sh import oligoarray_cl as oligoarray
 
 
-
 class OligoarrayDesigner(object):
     def run(self,
             input_file,
@@ -27,7 +26,8 @@ class OligoarrayDesigner(object):
             prohibited_seqs=[6 * 'C', 6 * 'G', 6 * 'T', 6 * 'A'],
             num_processors=-1,
             min_dist=2,
-            timeout=10):
+            timeout=10,
+            blast_timeout=3):
         min_spacing = max_length + min_dist
         prohibited_seqs = ";".join(prohibited_seqs)
         if num_processors == -1:
@@ -76,8 +76,8 @@ class OligoarrayDesigner(object):
                         create_time = arrow.get(proc._create_time)
                         # Kill any blast thats run more than two minutes
                         # This number will probably need to get adjusted for large DBs and slow cpus
-                        if arrow.utcnow() > create_time.replace(minutes=3,
-                                                                seconds=00):
+                        if arrow.utcnow() > create_time.replace(
+                                minutes=blast_timeout, ):
                             proc.kill()
                             print("Killing {}".format(proc))
                 except:
@@ -138,14 +138,10 @@ class OligoArrayResults(object):
                     if name not in row[7]:
                         failed.append(row)
                         continue
-                    results.append({
-                        "target": name,
-                        "seq": row[-1],
-                    })
+                    results.append({"target": name, "seq": row[-1], })
                 else:
                     failed.append(row)
         return results
 
     def __init__(self, ):
         self.file = NamedTemporaryFile('w')
-
