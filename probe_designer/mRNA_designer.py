@@ -10,9 +10,9 @@ from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
 
 from progressbar import ProgressBar
-from sequence_getter import SequenceGetter
-from utils.timeout import timeout
-from utils.misc import gc_count
+from probe_designer.sequence_getter import SequenceGetter
+from probe_designer.utils.timeout import timeout
+from probe_designer.utils.misc import gc_count
 
 csv.field_size_limit(sys.maxsize)  # Prevent field size overflow.
 
