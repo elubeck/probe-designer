@@ -26,15 +26,20 @@ Glutamate; Glutamate Transporter; Glutamine; Glutamine Synthetase; Vesicular Glu
 from Bio import Entrez
 from probe_designer.mRNA_designer import RNARetriever2, design_step
 from probe_designer.probe_refiner import ProbeFilter, probe_set_refiner
+import json
 retriever = RNARetriever2()
 filterer = ProbeFilter(db='gencode_tracks_reversed_introns+mRNA', copy_num='brain')
 Entrez.email = 'elubeck@caltech.edu'
 passed = {}
+with open("brain_type_genes.json".format(), 'r') as f_out:
+    used = json.load(f_out).keys()
 for frag in gene_str.split(";"):
     for sub_frag in frag.split('/'):
         name = sub_frag.strip(" \n")
         name1 = name[0].upper() + name[1:].lower()
         # Make best set of probes
+        if name in used:
+            continue
         name, probes, seq = design_step(name1, cds_only=True, length=26, spacing=0,
                                         gc_target=0.55, gc_min=0.35, gc_max=0.75)
         if name == "FAILED":
@@ -59,10 +64,14 @@ for frag in gene_str.split(";"):
             name1 = result[0]['Entrezgene_gene']['Gene-ref']['Gene-ref_locus']
             name, probes, seq = design_step(name1, cds_only=True, length=26, spacing=0,
                                             gc_target=0.55, gc_min=0.35, gc_max=0.75)
+        if name in used:
+            continue
         probes = filterer.run(probes, name, match_thresh=14, n_probes=48,
                               max_off_target=2000, off_target_hits=6)
         print(name, len(probes), len(''.join(seq)))
-        passed[name1] = probes
+        passed[name] = probes
+        with open("brain_type_genes.json".format(), 'w') as f_out:
+            json.dump(passed, f_out)
 
 
 import arrow
