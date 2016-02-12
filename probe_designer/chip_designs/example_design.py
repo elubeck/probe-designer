@@ -7,12 +7,6 @@ from probe_designer.probe_refiner import ProbeFilter, probe_set_refiner
 retriever = RNARetriever2()
 filterer = ProbeFilter(db='gencode_tracks_reversed_introns+mRNA', copy_num='brain')
 
-# # Make best set of probes
-# name, probes, sequence = design_step('Pgk1', cds_only=True, length=35,
-#                                      spacing=0, gc_target=0.55, gc_min=None, gc_max=None)
-# probes = set(probes)
-# # Filter crappy probes out
-# probes = filterer.run(probes, name, match_thresh=18, n_probes=48, max_off_target=2000)
 genes = ['Actg1', 'Actr3', 'Adnp', 'atf4', 'atg5', 'B2m', 'Bcl2', 'BDNF',
          'Casp8', 'Cdc42', 'Cebpa', 'Cebpb', 'chat', 'Cited2', 'csf1', 'CSf1r',
          'dbh', 'Ddc', 'ddit4', 'ddx4', 'Dhx9', 'drd2', 'Fcgr2b', 'Gba',
@@ -26,8 +20,10 @@ passed = {}
 for gene in genes:
     try:
         name = gene[0].upper() + gene[1:].lower()
+        # Make best set of probes
         name, probes, seq = design_step(name, cds_only=True, length=26, spacing=0,
                                         gc_target=0.55, gc_min=0.35, gc_max=0.75)
+        # Filter crappy probes out
         probes = filterer.run(probes, name, match_thresh=14, n_probes=48,
                                 max_off_target=2000, off_target_hits=6)
         print(gene, len(probes), len(''.join(seq)))
