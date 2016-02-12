@@ -48,11 +48,11 @@ for frag in gene_str.split(";"):
                                         gc_target=0.55, gc_min=0.35, gc_max=0.75)
         if name == "FAILED":
             esearch = Entrez.read(Entrez.esearch(db='gene',
-                                                term='{}[gene] AND "Mus musculus"[orgn]'.format(
+                                                term='"{}"[gene] AND "Mus musculus"[orgn]'.format(
                                                     name1),
                                                 retmode='xml'))
             esearch2 = Entrez.read(Entrez.esearch(db='gene',
-                                                 term='{} AND "Mus musculus"[orgn]'.format(
+                                                 term='"{}" AND "Mus musculus"[orgn]'.format(
                                                      name1),
                                                  retmode='xml'))
             if len(esearch['IdList']) == 1:
