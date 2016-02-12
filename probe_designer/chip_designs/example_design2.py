@@ -33,7 +33,7 @@ Entrez.email = 'elubeck@caltech.edu'
 passed = {}
 try:
     with open("brain_type_genes.json".format(), 'r') as f_out:
-        used = json.load(f_out).keys()
+        passed = json.load(f_out)
 except FileNotFoundError:
     print("No json")
     used = set()
@@ -42,7 +42,7 @@ for frag in gene_str.split(";"):
         name = sub_frag.strip(" \n")
         name1 = name[0].upper() + name[1:].lower()
         # Make best set of probes
-        if name in used:
+        if name1 in passed.keys():
             continue
         name, probes, seq = design_step(name1, cds_only=True, length=26, spacing=0,
                                         gc_target=0.55, gc_min=0.35, gc_max=0.75)
