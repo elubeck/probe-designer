@@ -30,10 +30,18 @@ for gene in genes:
                                         gc_target=0.55, gc_min=0.35, gc_max=0.75)
         probes = filterer.run(probes, name, match_thresh=14, n_probes=48,
                                 max_off_target=2000, off_target_hits=6)
-        print(gene, len(probes), len(seq))
+        print(gene, len(probes), len(''.join(seq)))
         passed[gene] = probes
     except AssertionError:
         print("Couldn't find {}".format(name))
 
-print("BOB")
+import arrow
+import csv
+with open("tim_genes_{}.csv".format(arrow.now().timestamp), 'w') as f_out:
+    cv = csv.writer(f_out)
+    for name, genes in passed.items():
+        for gene in genes:
+            cv.writerow([name, gene])
+
+
 print("DONE")
