@@ -31,8 +31,12 @@ retriever = RNARetriever2()
 filterer = ProbeFilter(db='gencode_tracks_reversed_introns+mRNA', copy_num='brain')
 Entrez.email = 'elubeck@caltech.edu'
 passed = {}
-with open("brain_type_genes.json".format(), 'r') as f_out:
-    used = json.load(f_out).keys()
+try:
+    with open("brain_type_genes.json".format(), 'r') as f_out:
+        used = json.load(f_out).keys()
+except FileNotFoundError:
+    print("No json")
+    used = set()
 for frag in gene_str.split(";"):
     for sub_frag in frag.split('/'):
         name = sub_frag.strip(" \n")
