@@ -40,7 +40,7 @@ for frag in gene_str.split(";"):
         if name == "FAILED":
             esearch = Entrez.read(Entrez.esearch(db='gene',
                                                 term='{} "Mus musculus"[orgn]'.format(
-                                                    gene),
+                                                    name1),
                                                 retmode='xml'))
             if len(esearch['IdList']) == 1:
                 result = Entrez.read(Entrez.efetch(db='gene',
