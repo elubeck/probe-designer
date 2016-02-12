@@ -70,6 +70,9 @@ for frag in gene_str.split(";"):
                                             gc_target=0.55, gc_min=0.35, gc_max=0.75)
         if name in used:
             continue
+        probes = set(probes)
+        if not probes:
+            continue
         probes = filterer.run(probes, name, match_thresh=14, n_probes=48,
                               max_off_target=2000, off_target_hits=6)
         print(name, len(probes), len(''.join(seq)))
