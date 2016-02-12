@@ -22,8 +22,8 @@ def sub_seq_splitter(seq,
                      gc_target=0.55,
                      stride=1,
                      spacing=2,
-                     gc_min=None,
-                     gc_max=None,
+                     gc_min=0.35,
+                     gc_max=0.75,
                      debug=True):
     """
     Takes sequence and designs best probes of given size closests to gc_target.
