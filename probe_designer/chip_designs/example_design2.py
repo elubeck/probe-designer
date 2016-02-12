@@ -50,18 +50,15 @@ for frag in gene_str.split(";"):
                 result = Entrez.read(Entrez.efetch(db='gene',
                                                 id=esearch['IdList'][0],
                                                 retmode='xml'))
-                name1 = result[0]['Entrezgene_gene']['Gene-ref']['Gene-ref_locus']
-                name, probes, seq = design_step(name1, cds_only=True, length=26, spacing=0,
-                                                gc_target=0.55, gc_min=0.35, gc_max=0.75)
             elif len(esearch2['IdList']) == 1:
                 result = Entrez.read(Entrez.efetch(db='gene',
-                                                   id=esearch['IdList'][0],
+                                                   id=esearch2['IdList'][0],
                                                    retmode='xml'))
-                name1 = result[0]['Entrezgene_gene']['Gene-ref']['Gene-ref_locus']
-                name, probes, seq = design_step(name1, cds_only=True, length=26, spacing=0,
-                                                gc_target=0.55, gc_min=0.35, gc_max=0.75)
             else:
                 continue
+            name1 = result[0]['Entrezgene_gene']['Gene-ref']['Gene-ref_locus']
+            name, probes, seq = design_step(name1, cds_only=True, length=26, spacing=0,
+                                            gc_target=0.55, gc_min=0.35, gc_max=0.75)
         probes = filterer.run(probes, name, match_thresh=14, n_probes=48,
                               max_off_target=2000, off_target_hits=6)
         print(name, len(probes), len(''.join(seq)))
