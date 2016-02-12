@@ -39,13 +39,24 @@ for frag in gene_str.split(";"):
                                         gc_target=0.55, gc_min=0.35, gc_max=0.75)
         if name == "FAILED":
             esearch = Entrez.read(Entrez.esearch(db='gene',
-                                                term='{} "Mus musculus"[orgn]'.format(
+                                                term='{}[gene] AND "Mus musculus"[orgn]'.format(
                                                     name1),
                                                 retmode='xml'))
+            esearch2 = Entrez.read(Entrez.esearch(db='gene',
+                                                 term='{} AND "Mus musculus"[orgn]'.format(
+                                                     name1),
+                                                 retmode='xml'))
             if len(esearch['IdList']) == 1:
                 result = Entrez.read(Entrez.efetch(db='gene',
                                                 id=esearch['IdList'][0],
                                                 retmode='xml'))
+                name = result[0]['Entrezgene_gene']['Gene-ref']['Gene-ref_locus']
+                name, probes, seq = design_step(name1, cds_only=True, length=26, spacing=0,
+                                                gc_target=0.55, gc_min=0.35, gc_max=0.75)
+            elif len(esearch2['IdList']) == 1:
+                result = Entrez.read(Entrez.efetch(db='gene',
+                                                   id=esearch['IdList'][0],
+                                                   retmode='xml'))
                 name = result[0]['Entrezgene_gene']['Gene-ref']['Gene-ref_locus']
                 name, probes, seq = design_step(name1, cds_only=True, length=26, spacing=0,
                                                 gc_target=0.55, gc_min=0.35, gc_max=0.75)
