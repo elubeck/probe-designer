@@ -33,7 +33,7 @@ passed = {}
 for frag in gene_str.split(";"):
     for sub_frag in frag.split('/'):
         name = sub_frag.strip(" \n")
-        name1 = gene[0].upper() + gene[1:].lower()
+        name1 = name[0].upper() + name[1:].lower()
         # Make best set of probes
         name, probes, seq = design_step(name1, cds_only=True, length=26, spacing=0,
                                         gc_target=0.55, gc_min=0.35, gc_max=0.75)
