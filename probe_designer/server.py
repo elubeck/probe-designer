@@ -39,7 +39,7 @@ def index():
         gc_target = form.gc_target.data
     else:
         genes=None
-    print(**form)
+    print(**form.data)
     return render_template("view.html", form=form, genes=genes)
 
 if __name__ == '__main__':
