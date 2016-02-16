@@ -150,7 +150,7 @@ class ProbeFilter(object):
             match_thresh=18,
             n_probes=48,
             max_off_target=10000,
-            off_target_hits=6):
+            off_target_hits=6, **kwargs):
         """
         flat_probes is a list of probes.  Sequence only
         """
