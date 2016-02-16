@@ -15,7 +15,7 @@ def index():
     if request.method == 'POST' and form.validate():
         genes = form.genes.data
         gc_target = form.gc_target.data
-        return render_template("view_output.html", form=form, s=r)
+        return render_template("view_output.html", form=form, s=genes)
     else:
         return render_template("view_input.html", form=form)
 
