@@ -5,9 +5,9 @@
     <title>mRNA ProbeDesigner</title>
     <form method=post action="">
         Genes to Target: {{ form.genes }}
-        GC Target {{ form.gc_target }}
-        {{ form.cds_only }}
-        <input type=submit value=equals>
+        GC Target: {{ form.gc_target }}
+        Design CDS Only: {{ form.cds_only }}
+        <input type=submit value=Compute>
     </form>
     {{ form.genes }}
 </head>
