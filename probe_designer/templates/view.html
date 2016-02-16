@@ -7,13 +7,6 @@
     <title>mRNA ProbeDesigner</title>
     {% block content %}
         {{ wtf.quick_form(form) }}
-        <form method=post action="">
-            Genes to Target: {{ form.genes }}
-            GC Target: {{ form.gc_target }}
-            Design CDS Only: {{ form.cds_only }}
-            <input type=submit value=Compute>
-        </form>
-        {{ form.genes }}
     {% endblock %}
 </head>
 <body>
