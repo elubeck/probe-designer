@@ -3,8 +3,7 @@ from flask.ext.wtf import Form
 from wtforms import TextField, validators, SelectField, DecimalField, BooleanField, IntegerField
 
 from flask_bootstrap import Bootstrap
-app = Flask(__name__)
-Bootstrap(app)
+from flask_appconfig import AppConfig
 
 # Model
 class InputForm(Form):
@@ -35,4 +34,7 @@ def index():
     return render_template("view.html", form=form, )
 
 if __name__ == '__main__':
+    app = Flask(__name__)
+    AppConfig(app, None)
+    Bootstrap(app)
     app.run(host='0.0.0.0', debug=True)
