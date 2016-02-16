@@ -29,7 +29,7 @@ class InputForm(Form):
     false_pos_len = IntegerField(default=18, validators=non_neg_val)
     max_off_target = IntegerField(default=50, validators=non_neg_val)
     off_hits = IntegerField(default=6, validators=non_neg_val)
-    #submit_button = SubmitField('Submit Form')
+    submit_button = SubmitField('Submit Form')
 
 # View
 @app.route('/', methods=['GET', 'POST'])
