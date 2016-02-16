@@ -120,6 +120,30 @@ def sub_seq_splitter(seq,
 
 
 
+def design_step_gui(gene, max_time=180, cds_only=False, length=35, debug=True,
+                spacing=2, gc_target=0.55, gc_min=None, gc_max=None, **kwargs):
+    rr = RNARetriever2()
+    try:
+        gene_records = [
+            str(record.seq)
+            for record in rr.get_single_rna(gene,
+                                            chunk_size=100000,
+                                            cds_only=cds_only)
+            ]
+    except:
+        print("Record lookup fail at {}".format(gene))
+        return ("FAILED", [], [])
+    probes = []
+    for chunk in gene_records:
+        for probe in sub_seq_splitter(str(chunk),
+                                      length,
+                                      gc_min=gc_min,
+                                      spacing=spacing,
+                                      gc_target=gc_target,
+                                      gc_max=gc_max,
+                                      debug=debug):
+            probes.append(probe)
+    return gene, set(probes), gene_records
 
 
 def design_step(gene, max_time=180, cds_only=False, length=35, debug=True,

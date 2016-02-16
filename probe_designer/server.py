@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request
 from flask.ext.wtf import Form
 from wtforms import TextField, validators, SelectField, DecimalField, BooleanField, IntegerField, SubmitField
-from probe_designer.mRNA_designer import RNARetriever2, design_step
+from probe_designer.mRNA_designer import RNARetriever2, design_step_gui
 
 from flask_bootstrap import Bootstrap
 from flask_appconfig import AppConfig
@@ -36,7 +36,7 @@ class InputForm(Form):
 def index():
     form = InputForm(request.form)
     if request.method == 'POST' and form.validate():
-        name, probes1, seq = design_step(form.data['genes'], **form.data)
+        name, probes1, seq = design_step_gui(form.data['genes'], **form.data)
         print(name, probes1, seq)
         genes = form.genes.data
     else:
