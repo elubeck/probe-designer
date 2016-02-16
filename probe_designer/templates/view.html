@@ -5,15 +5,14 @@
     <meta charset="UTF-8">
     <title>mRNA ProbeDesigner</title>
     {% block content %}
-      <h1>Hello, Bootstrap</h1>
+        <form method=post action="">
+            Genes to Target: {{ form.genes }}
+            GC Target: {{ form.gc_target }}
+            Design CDS Only: {{ form.cds_only }}
+            <input type=submit value=Compute>
+        </form>
+        {{ form.genes }}
     {% endblock %}
-    <form method=post action="">
-        Genes to Target: {{ form.genes }}
-        GC Target: {{ form.gc_target }}
-        Design CDS Only: {{ form.cds_only }}
-        <input type=submit value=Compute>
-    </form>
-    {{ form.genes }}
 </head>
 <body>
 
