@@ -21,13 +21,23 @@ for gene in genes:
     try:
         name = gene[0].upper() + gene[1:].lower()
         # Make best set of probes
-        name, probes, seq = design_step(name, cds_only=True, length=26, spacing=0,
+        name, probes, seq = design_step(name, cds_only=True, length=35, spacing=0,
                                         gc_target=0.55, gc_min=0.35, gc_max=0.75)
         # Filter crappy probes out
-        probes = filterer.run(probes, name, match_thresh=14, n_probes=48,
-                                max_off_target=2000, off_target_hits=6)
-        print(gene, len(probes), len(''.join(seq)))
+        probes = filterer.run(probes, name, match_thresh=18, n_probes=48,
+                                max_off_target=50, off_target_hits=6)
         passed[gene] = probes
+        print(gene, len(probes),  len(''.join(seq)))
+        if len(probes) < 24:
+            name, probes, seq = design_step(name, cds_only=False, length=35, spacing=0,
+                                            gc_target=0.55, gc_min=0.35, gc_max=0.75)
+            # Filter crappy probes out
+            probes2 = filterer.run(probes, name, match_thresh=18, n_probes=48,
+                                  max_off_target=50, off_target_hits=6)
+
+            print(gene, len(probes), len(probes2), len(''.join(seq)))
+            if len(probes2) > len(passed[gene]):
+                passed[gene] = probes
     except AssertionError:
         print("Couldn't find {}".format(name))
 
