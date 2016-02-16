@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request
 from flask.ext.wtf import Form
-from wtforms import TextField, validators, SelectField, DecimalField, BooleanField, IntegerField, SubmitField
+from wtforms import TextField, validators, SelectField, DecimalField, BooleanField, IntegerField, SubmitField, FloatField
 from probe_designer.mRNA_designer import RNARetriever2, design_step_gui
 
 from flask_bootstrap import Bootstrap
@@ -18,9 +18,9 @@ class InputForm(Form):
     std_validation = [validators.InputRequired()]
     non_neg_val = [validators.InputRequired(), validators.NumberRange(min=0)]
     genes = TextField(validators=std_validation)
-    gc_target = DecimalField(default=0.55, validators=std_validation)
-    gc_min = DecimalField(default=0.35, validators=std_validation)
-    gc_max = DecimalField(default=0.75, validators=std_validation)
+    gc_target = FloatField(default=0.55, validators=std_validation)
+    gc_min = FloatField(default=0.35, validators=std_validation)
+    gc_max = FloatField(default=0.75, validators=std_validation)
     cds_only = BooleanField(label='CDS Only', default=True)
     length= IntegerField(default=35, validators=[validators.InputRequired(),
                                                        validators.NumberRange(min=14)])
