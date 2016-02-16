@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request
-from wtforms import Form, TextField, validators, SelectField, DecimalField
+from wtforms import Form, TextField, validators, SelectField, DecimalField, BooleanField
 
 app = Flask(__name__)
 
@@ -7,6 +7,7 @@ app = Flask(__name__)
 class InputForm(Form):
     genes = TextField(validators=[validators.InputRequired()])
     gc_target = DecimalField(default=0.55, validators=[validators.InputRequired()])
+    cds_only = BooleanField(label='CDS Only', default=True)
 
 # View
 @app.route('/', methods=['GET', 'POST'])
