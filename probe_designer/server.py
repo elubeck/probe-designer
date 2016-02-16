@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request
 from flask.ext.wtf import Form
 from wtforms import TextField, validators, SelectField, DecimalField, BooleanField, IntegerField, SubmitField
+from probe_designer.mRNA_designer import RNARetriever2, design_step
 
 from flask_bootstrap import Bootstrap
 from flask_appconfig import AppConfig
@@ -21,7 +22,7 @@ class InputForm(Form):
     gc_min = DecimalField(default=0.35, validators=std_validation)
     gc_max = DecimalField(default=0.75, validators=std_validation)
     cds_only = BooleanField(label='CDS Only', default=True)
-    probe_length= IntegerField(default=35, validators=[validators.InputRequired(),
+    length= IntegerField(default=35, validators=[validators.InputRequired(),
                                                        validators.NumberRange(min=14)])
     spacing = IntegerField(default=1, validators=non_neg_val)
     max_probes = IntegerField(default=48, validators=non_neg_val)
@@ -35,11 +36,12 @@ class InputForm(Form):
 def index():
     form = InputForm(request.form)
     if request.method == 'POST' and form.validate():
+        name, probes1, seq = design_step(form.data['genes'], **form.data)
+        print(name, probes1, seq)
         genes = form.genes.data
         gc_target = form.gc_target.data
     else:
         genes=None
-    print(list(**form.data))
     return render_template("view.html", form=form, genes=genes)
 
 if __name__ == '__main__':
