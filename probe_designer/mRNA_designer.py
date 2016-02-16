@@ -123,7 +123,7 @@ def sub_seq_splitter(seq,
 
 
 def design_step(gene, max_time=180, cds_only=False, length=35, debug=True,
-                spacing=2, gc_target=0.55, gc_min=None, gc_max=None):
+                spacing=2, gc_target=0.55, gc_min=None, gc_max=None, **kwargs):
     rr = RNARetriever2()
     try:
         with timeout(seconds=max_time):
