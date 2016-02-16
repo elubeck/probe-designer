@@ -37,7 +37,8 @@ def index():
     form = InputForm(request.form)
     if request.method == 'POST' and form.validate():
         name, probes1, seq = design_step_gui(form.data['genes'], **form.data)
-        print(name, probes1, seq)
+        probes2 = filterer.run(probes1, name, **form.data)
+        print(name, len(probes1), len(probes2))
         genes = form.genes.data
     else:
         genes=None
