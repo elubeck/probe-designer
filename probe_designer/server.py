@@ -6,7 +6,10 @@ from flask_bootstrap import Bootstrap
 from flask_appconfig import AppConfig
 
 app = Flask(__name__)
-AppConfig(app, None)
+app.config['SECRET_KEY'] = 'bodole'
+app.config['RECAPTCHA_PUBLIC_KEY'] = \
+    '6Lfol9cSAAAAADAkodaYldddd22414141'
+# AppConfig(app, None)
 Bootstrap(app)
 
 # Model
