@@ -5,6 +5,10 @@ from wtforms import TextField, validators, SelectField, DecimalField, BooleanFie
 from flask_bootstrap import Bootstrap
 from flask_appconfig import AppConfig
 
+app = Flask(__name__)
+AppConfig(app, None)
+Bootstrap(app)
+
 # Model
 class InputForm(Form):
     std_validation = [validators.InputRequired()]
@@ -34,7 +38,4 @@ def index():
     return render_template("view.html", form=form, )
 
 if __name__ == '__main__':
-    app = Flask(__name__)
-    AppConfig(app, None)
-    Bootstrap(app)
     app.run(host='0.0.0.0', debug=True)
