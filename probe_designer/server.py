@@ -36,11 +36,10 @@ class InputForm(Form):
 def index():
     form = InputForm(request.form)
     if request.method == 'POST' and form.validate():
-        from itertools import partial
+        del form.data['submit_button']
         name, probes1, seq = design_step(form.data['genes'], **form.data)
         print(name, probes1, seq)
         genes = form.genes.data
-        gc_target = form.gc_target.data
     else:
         genes=None
     return render_template("view.html", form=form, genes=genes)
