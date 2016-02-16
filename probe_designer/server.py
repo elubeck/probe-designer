@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request
-from flask.ext.wtforms import Form, TextField, validators, SelectField, DecimalField, BooleanField, IntegerField
+from flask.ext.wtf import Form
+from wtforms import TextField, validators, SelectField, DecimalField, BooleanField, IntegerField
 
 from flask_bootstrap import Bootstrap
 app = Flask(__name__)
