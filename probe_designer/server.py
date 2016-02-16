@@ -29,13 +29,14 @@ class InputForm(Form):
     false_pos_len = IntegerField(default=18, validators=non_neg_val)
     max_off_target = IntegerField(default=50, validators=non_neg_val)
     off_hits = IntegerField(default=6, validators=non_neg_val)
-    submit_button = SubmitField('Submit Form')
+    #submit_button = SubmitField('Submit Form')
 
 # View
 @app.route('/', methods=['GET', 'POST'])
 def index():
     form = InputForm(request.form)
     if request.method == 'POST' and form.validate():
+        from itertools import partial
         name, probes1, seq = design_step(form.data['genes'], **form.data)
         print(name, probes1, seq)
         genes = form.genes.data
