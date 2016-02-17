@@ -2,8 +2,8 @@ from flask import Flask, render_template, request, make_response
 from flask.ext.wtf import Form
 from wtforms import TextField, validators, SelectField, DecimalField, \
     BooleanField, IntegerField, SubmitField, FloatField
-from ..mRNA_designer import design_step_gui
-from ..probe_refiner import ProbeFilter
+from probe_designer.mRNA_designer import design_step_gui
+from probe_designer.probe_refiner import ProbeFilter
 from Bio import Entrez
 
 from flask_bootstrap import Bootstrap
