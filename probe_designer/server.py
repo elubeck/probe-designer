@@ -34,7 +34,6 @@ class InputForm(Form):
     submit_button = SubmitField('Submit Form')
 
 def probes_2_str(probes, name):
-    csv_str = ["name,probe"]
     for probe in probes:
         csv_str.append("{},{}".format(name, probe))
     return "\n".join(csv_str)
@@ -44,13 +43,15 @@ def probes_2_str(probes, name):
 def index():
     form = InputForm(request.form)
     if request.method == 'POST' and form.validate():
-        name, probes1, seq = design_step_gui(form.data['genes'], **form.data)
-        filterer = ProbeFilter(db='gencode_tracks_reversed_introns+mRNA', copy_num='brain')
-        probes2 = filterer.run(set(probes1), name, **form.data)
-        csv = probes_2_str(probes2, name)
+        csv = ""
+        for gene_name in form.data['genes'].split(',')
+            name, probes1, seq = design_step_gui(form.data['genes'], **form.data)
+            filterer = ProbeFilter(db='gencode_tracks_reversed_introns+mRNA', copy_num='brain')
+            probes2 = filterer.run(set(probes1), name, **form.data)
+            csv = "\n".join([csv, probes_2_str(probes2, gene_name)])
         from flask import make_response
         response = make_response(csv)
-        response.headers["Content-Disposition"] = "attachment; filename=books.csv"
+        response.headers["Content-Disposition"] = "attachment; filename=probes.csv"
         return response
     else:
         genes=None
