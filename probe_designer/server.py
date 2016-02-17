@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, make_response
 from flask.ext.wtf import Form
 from wtforms import TextField, validators, SelectField, DecimalField, \
     BooleanField, IntegerField, SubmitField, FloatField
-from probe_designer.mRNA_designer import RNARetriever2, design_step_gui
+from probe_designer.mRNA_designer import design_step_gui
 from probe_designer.probe_refiner import ProbeFilter
 from Bio import Entrez
 
@@ -17,7 +17,8 @@ app.config['SECRET_KEY'] = 'bodole'
 app.config['RECAPTCHA_PUBLIC_KEY'] = \
     '6Lfol9cSAAAAADAkodaYldddd22414141'
 BasicAuth(app)
-app.config['BASIC_AUTH_PASSWORD'] = 'matrix'
+app.config['BASIC_AUTH_USERNAME'] = 'cailab'
+app.config['BASIC_AUTH_PASSWORD'] = 'all your probes are belong to us'
 app.config['BASIC_AUTH_FORCE'] = True
 # AppConfig(app, None)
 Bootstrap(app)
@@ -108,8 +109,6 @@ def index():
         response = make_response(csv)
         response.headers["Content-Disposition"] = "attachment; filename=probes.csv"
         return response
-    else:
-        genes=None
     return render_template("view.html", form=form, genes=genes)
 
 if __name__ == '__main__':
