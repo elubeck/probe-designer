@@ -16,11 +16,10 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'bodole'
 app.config['RECAPTCHA_PUBLIC_KEY'] = \
     '6Lfol9cSAAAAADAkodaYldddd22414141'
-app.config['BASIC_AUTH_USERNAME'] = 'john'
+BasicAuth(app)
 app.config['BASIC_AUTH_PASSWORD'] = 'matrix'
 app.config['BASIC_AUTH_FORCE'] = True
 # AppConfig(app, None)
-BasicAuth(app)
 Bootstrap(app)
 
 # Model
