@@ -56,6 +56,7 @@ def parse_form(form):
 def parse_form2(form):
     csv = ""
     for gene_name in form.data['genes'].split(','):
+        print(gene_name)
         name = gene_name.strip(' ')
         gene_name = name[0].upper() + name[1:].lower()
         name, probes1, seq = design_step_gui(gene_name, **form.data)
