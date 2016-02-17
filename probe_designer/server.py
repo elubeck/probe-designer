@@ -33,6 +33,12 @@ class InputForm(Form):
     off_hits = IntegerField(default=6, validators=non_neg_val)
     submit_button = SubmitField('Submit Form')
 
+def probes_2_str(probes, name):
+    csv_str = ["name,probe"]
+    for probe in probes:
+        csv_str.append("{},{}".format(name, probe))
+    return "\n".join(csv_str)
+
 # View
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -41,8 +47,11 @@ def index():
         name, probes1, seq = design_step_gui(form.data['genes'], **form.data)
         filterer = ProbeFilter(db='gencode_tracks_reversed_introns+mRNA', copy_num='brain')
         probes2 = filterer.run(set(probes1), name, **form.data)
-        print(name, len(probes1), len(probes2))
-        genes = form.genes.data
+        csv = probes_2_str(probes2, name)
+        from flask import make_response
+        response = make_response(csv)
+        response.headers["Content-Disposition"] = "attachment; filename=books.csv"
+        return response
     else:
         genes=None
     return render_template("view.html", form=form, genes=genes)
