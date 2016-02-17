@@ -46,7 +46,7 @@ def index():
         csv = ""
         for gene_name in form.data['genes'].split(','):
             gene_name = gene_name.strip(' ')
-            name, probes1, seq = design_step_gui(form.data['genes'], **form.data)
+            name, probes1, seq = design_step_gui(gene_name, **form.data)
             filterer = ProbeFilter(db='gencode_tracks_reversed_introns+mRNA', copy_num='brain')
             probes2 = filterer.run(set(probes1), name, **form.data)
             csv = "\n".join([csv, probes_2_str(probes2, gene_name)])
