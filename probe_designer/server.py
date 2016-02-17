@@ -45,6 +45,7 @@ def index():
     if request.method == 'POST' and form.validate():
         csv = ""
         for gene_name in form.data['genes'].split(','):
+            gene_name = gene_name.strip(' ')
             name, probes1, seq = design_step_gui(form.data['genes'], **form.data)
             filterer = ProbeFilter(db='gencode_tracks_reversed_introns+mRNA', copy_num='brain')
             probes2 = filterer.run(set(probes1), name, **form.data)
