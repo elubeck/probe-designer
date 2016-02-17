@@ -55,7 +55,10 @@ def parse_form(form):
     return csv
 
 def parse_form2(form):
-    csv = ""
+    import io
+    import csv
+    output = io.StringIO()
+    writer = csv.writer(output)
     for gene_name in form.data['genes'].split(','):
         print(gene_name)
         name = gene_name.strip(' ')
@@ -86,8 +89,9 @@ def parse_form2(form):
         if not probes:
             continue
         probes2 = filterer.run(set(probes1), name, **form.data)
-        csv = "\n".join([csv, probes_2_str(probes2, gene_name)])
-    return csv
+        for n, probe in enumerate(probes2):
+            writer.writerow((gene_name, n, name, probe))
+    return output.getvalue()
 
 # View
 @app.route('/', methods=['GET', 'POST'])
