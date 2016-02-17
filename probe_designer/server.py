@@ -4,6 +4,7 @@ from wtforms import TextField, validators, SelectField, DecimalField, \
     BooleanField, IntegerField, SubmitField, FloatField
 from probe_designer.mRNA_designer import RNARetriever2, design_step_gui
 from probe_designer.probe_refiner import ProbeFilter
+from Bio import Entrez
 
 from flask_bootstrap import Bootstrap
 from flask_appconfig import AppConfig
@@ -48,6 +49,40 @@ def parse_form(form):
         name, probes1, seq = design_step_gui(gene_name, **form.data)
         filterer = ProbeFilter(db='gencode_tracks_reversed_introns+mRNA',
                                copy_num=form.data['copy_num_db'])
+        probes2 = filterer.run(set(probes1), name, **form.data)
+        csv = "\n".join([csv, probes_2_str(probes2, gene_name)])
+    return csv
+
+def parse_form2(form):
+    csv = ""
+    for gene_name in form.data['genes'].split(','):
+        name = gene_name.strip(' ')
+        gene_name = name[0].upper() + name[1:].lower()
+        name, probes1, seq = design_step_gui(gene_name, **form.data)
+        if name == "FAILED":
+            esearch = Entrez.read(Entrez.esearch(db='gene',
+                                                 term='"{}"[gene] AND "Mus musculus"[orgn]'.format(
+                                                     gene_name),
+                                                 retmode='xml'))
+            esearch2 = Entrez.read(Entrez.esearch(db='gene',
+                                                  term='"{}" AND "Mus musculus"[orgn]'.format(
+                                                      gene_name),
+                                                  retmode='xml'))
+            if len(esearch['IdList']) == 1:
+                result = Entrez.read(Entrez.efetch(db='gene',
+                                                   id=esearch['IdList'][0],
+                                                   retmode='xml'))
+            elif len(esearch2['IdList']) == 1:
+                result = Entrez.read(Entrez.efetch(db='gene',
+                                                   id=esearch2['IdList'][0],
+                                                   retmode='xml'))
+            else:
+                continue
+            proper_name = result[0]['Entrezgene_gene']['Gene-ref']['Gene-ref_locus']
+            name, probes, seq = design_step_gui(proper_name, **form.data)
+        probes = set(probes)
+        if not probes:
+            continue
         probes2 = filterer.run(set(probes1), name, **form.data)
         csv = "\n".join([csv, probes_2_str(probes2, gene_name)])
     return csv
