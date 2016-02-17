@@ -34,8 +34,7 @@ class InputForm(Form):
     submit_button = SubmitField('Submit Form')
 
 def probes_2_str(probes, name):
-    for probe in probes:
-        csv_str.append("{},{}".format(name, probe))
+    csv_str = ["{},{}".format(name, probe) for probe in probes]
     return "\n".join(csv_str)
 
 # View
