@@ -109,7 +109,7 @@ def index():
         response = make_response(csv)
         response.headers["Content-Disposition"] = "attachment; filename=probes.csv"
         return response
-    return render_template("view.html", form=form, genes=genes)
+    return render_template("view.html", form=form, )
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=False)
