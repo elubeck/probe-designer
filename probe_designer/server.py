@@ -66,7 +66,6 @@ def parse_form2(form):
         name = gene_name.strip(' ')
         gene_name = name[0].upper() + name[1:].lower()
         name, probes, seq = design_step_gui(gene_name, **form.data)
-        print(name)
         if name == "FAILED":
             esearch = Entrez.read(Entrez.esearch(db='gene',
                                                  term='"{}"[gene] AND "Mus musculus"[orgn]'.format(
@@ -100,7 +99,7 @@ def parse_form2(form):
 def index():
     form = InputForm(request.form)
     if request.method == 'POST' and form.validate():
-        csv = parse_form(form)
+        csv = parse_form2(form)
         response = make_response(csv)
         response.headers["Content-Disposition"] = "attachment; filename=probes.csv"
         return response
