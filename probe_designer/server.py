@@ -39,7 +39,8 @@ class InputForm(Form):
     submit_button = SubmitField('Submit Form')
 
 def probes_2_str(probes, name):
-    csv_str = ["{},{}".format(name, probe) for probe in probes]
+    csv_str = ["{},{},{}".format(name, num, probe)
+                for num, probe in enumerate(probes)]
     return "\n".join(csv_str)
 
 def parse_form(form):
