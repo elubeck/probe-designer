@@ -63,6 +63,7 @@ def parse_form2(form):
         print(gene_name)
         name = gene_name.strip(' ')
         gene_name = name[0].upper() + name[1:].lower()
+        probes = []
         name, probes1, seq = design_step_gui(gene_name, **form.data)
         if name == "FAILED":
             esearch = Entrez.read(Entrez.esearch(db='gene',
