@@ -61,6 +61,8 @@ def parse_form2(form):
     import csv
     output = io.StringIO()
     writer = csv.writer(output)
+    filterer = ProbeFilter(db='gencode_tracks_reversed_introns+mRNA',
+                           copy_num=form.data['copy_num_db'])
     for gene_name in form.data['genes'].split(','):
         print(gene_name)
         name = gene_name.strip(' ')
