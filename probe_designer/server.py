@@ -31,6 +31,9 @@ class InputForm(Form):
     false_pos_len = IntegerField(default=18, validators=non_neg_val)
     max_off_target = IntegerField(default=50, validators=non_neg_val)
     off_hits = IntegerField(default=6, validators=non_neg_val)
+    copy_num = SelectField(default='brain',
+                           validators=std_validation,
+                           choices=[('brain', 'brain'), ('embryonic11.5', 'embryonic day 11.5')])
     submit_button = SubmitField('Submit Form')
 
 def probes_2_str(probes, name):
@@ -58,4 +61,4 @@ def index():
     return render_template("view.html", form=form, genes=genes)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', debug=True)
+    app.run(host='0.0.0.0', debug=False)
