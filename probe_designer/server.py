@@ -9,6 +9,8 @@ from Bio import Entrez
 from flask_bootstrap import Bootstrap
 from flask_appconfig import AppConfig
 
+Entrez.email = 'elubeck@caltech.edu'
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'bodole'
 app.config['RECAPTCHA_PUBLIC_KEY'] = \
@@ -63,7 +65,6 @@ def parse_form2(form):
         print(gene_name)
         name = gene_name.strip(' ')
         gene_name = name[0].upper() + name[1:].lower()
-        probes = []
         name, probes, seq = design_step_gui(gene_name, **form.data)
         if name == "FAILED":
             esearch = Entrez.read(Entrez.esearch(db='gene',
@@ -90,7 +91,7 @@ def parse_form2(form):
             continue
         probes2 = filterer.run(set(probes), name, **form.data)
         for n, probe in enumerate(probes2):
-            writer.writerow((gene_name, n, name, probe))
+            writer.writerow((gene_name, n+1, name, probe))
     return output.getvalue()
 
 # View
