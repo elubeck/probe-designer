@@ -7,6 +7,7 @@ from probe_designer.probe_refiner import ProbeFilter
 from Bio import Entrez
 
 from flask_bootstrap import Bootstrap
+from flask.ext.basicauth import BasicAuth
 from flask_appconfig import AppConfig
 
 Entrez.email = 'elubeck@caltech.edu'
@@ -15,7 +16,10 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'bodole'
 app.config['RECAPTCHA_PUBLIC_KEY'] = \
     '6Lfol9cSAAAAADAkodaYldddd22414141'
+app.config['BASIC_AUTH_USERNAME'] = 'john'
+app.config['BASIC_AUTH_PASSWORD'] = 'matrix'
 # AppConfig(app, None)
+BasicAuth(app)
 Bootstrap(app)
 
 
