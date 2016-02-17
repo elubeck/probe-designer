@@ -6,10 +6,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    {% block title %}mRNA ProbeDesigner{% endblock %}
-    <title>mRNA ProbeDesigner</title>
+    {% block title %}mRNA ProbeDesigner 2{% endblock %}
     {% block content %}
-      {{ wtf.quick_form(form, horizontal_columns=('sm', 2, 10),
+      {{ wtf.quick_form(form,
+      form_type='horizontal',
+      horizontal_columns=('sm', 2, 2),
        button_map={'submit_button': 'primary'}) }}
     {% endblock %}
     </head>
