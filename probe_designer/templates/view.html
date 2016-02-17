@@ -9,7 +9,8 @@
     {% block title %}mRNA ProbeDesigner{% endblock %}
     <title>mRNA ProbeDesigner</title>
     {% block content %}
-      {{ wtf.quick_form(form, button_map={'submit_button': 'primary'}) }}
+      {{ wtf.quick_form(form, horizontal_columns=('sm', 2, 10),
+       button_map={'submit_button': 'primary'}) }}
     {% endblock %}
     </head>
 <body>

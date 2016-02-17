@@ -1,14 +1,12 @@
+from Bio import Entrez
 from flask import Flask, render_template, request, make_response
+from flask.ext.basicauth import BasicAuth
 from flask.ext.wtf import Form
-from wtforms import TextField, validators, SelectField, DecimalField, \
-    BooleanField, IntegerField, SubmitField, FloatField
+from flask_bootstrap import Bootstrap
+from wtforms import validators, SelectField, BooleanField, IntegerField, SubmitField, FloatField, StringField
+
 from probe_designer.mRNA_designer import design_step_gui
 from probe_designer.probe_refiner import ProbeFilter
-from Bio import Entrez
-
-from flask_bootstrap import Bootstrap
-from flask.ext.basicauth import BasicAuth
-from flask_appconfig import AppConfig
 
 Entrez.email = 'elubeck@caltech.edu'
 
@@ -23,31 +21,34 @@ app.config['BASIC_AUTH_FORCE'] = True
 # AppConfig(app, None)
 Bootstrap(app)
 
+
 # Model
 class InputForm(Form):
     std_validation = [validators.InputRequired()]
     non_neg_val = [validators.InputRequired(), validators.NumberRange(min=0)]
-    genes = TextField(validators=std_validation)
+    genes = StringField(validators=std_validation)
     gc_target = FloatField(default=0.55, validators=std_validation)
     gc_min = FloatField(default=0.35, validators=std_validation)
     gc_max = FloatField(default=0.75, validators=std_validation)
     cds_only = BooleanField(label='CDS Only', default=True)
-    length= IntegerField(default=35, validators=[validators.InputRequired(),
-                                                       validators.NumberRange(min=14)])
+    length = IntegerField(default=35, validators=[validators.InputRequired(),
+                                                  validators.NumberRange(min=14)])
     spacing = IntegerField(default=1, validators=non_neg_val)
     max_probes = IntegerField(default=48, validators=non_neg_val)
     false_pos_len = IntegerField(default=18, validators=non_neg_val)
     max_off_target = IntegerField(default=50, validators=non_neg_val)
     off_hits = IntegerField(default=6, validators=non_neg_val)
     copy_num_db = SelectField(default='brain',
-                           validators=std_validation,
-                           choices=[('brain', 'brain'), ('embryonic11.5', 'embryonic day 11.5')])
+                              validators=std_validation,
+                              choices=[('brain', 'brain'), ('embryonic11.5', 'embryonic day 11.5')])
     submit_button = SubmitField('Submit Form')
+
 
 def probes_2_str(probes, name):
     csv_str = ["{},{},{}".format(name, num, probe)
-                for num, probe in enumerate(probes)]
+               for num, probe in enumerate(probes)]
     return "\n".join(csv_str)
+
 
 def parse_form(form):
     csv = ""
@@ -59,6 +60,7 @@ def parse_form(form):
         probes2 = filterer.run(set(probes1), name, **form.data)
         csv = "\n".join([csv, probes_2_str(probes2, gene_name)])
     return csv
+
 
 def parse_form2(form):
     import io
@@ -97,8 +99,9 @@ def parse_form2(form):
             continue
         probes2 = filterer.run(set(probes), name, **form.data)
         for n, probe in enumerate(probes2):
-            writer.writerow((gene_name, n+1, name, probe))
+            writer.writerow((gene_name, n + 1, name, probe))
     return output.getvalue()
+
 
 # View
 @app.route('/', methods=['GET', 'POST'])
@@ -110,6 +113,7 @@ def index():
         response.headers["Content-Disposition"] = "attachment; filename=probes.csv"
         return response
     return render_template("view.html", form=form, )
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=False)

@@ -1,3 +1,5 @@
+wtforms
+flask
 progressbar
 dataset
 arrow
