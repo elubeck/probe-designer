@@ -64,7 +64,7 @@ def parse_form2(form):
         name = gene_name.strip(' ')
         gene_name = name[0].upper() + name[1:].lower()
         probes = []
-        name, probes1, seq = design_step_gui(gene_name, **form.data)
+        name, probes, seq = design_step_gui(gene_name, **form.data)
         if name == "FAILED":
             esearch = Entrez.read(Entrez.esearch(db='gene',
                                                  term='"{}"[gene] AND "Mus musculus"[orgn]'.format(
@@ -86,10 +86,9 @@ def parse_form2(form):
                 continue
             proper_name = result[0]['Entrezgene_gene']['Gene-ref']['Gene-ref_locus']
             name, probes, seq = design_step_gui(proper_name, **form.data)
-        probes = set(probes)
         if not probes:
             continue
-        probes2 = filterer.run(set(probes1), name, **form.data)
+        probes2 = filterer.run(set(probes), name, **form.data)
         for n, probe in enumerate(probes2):
             writer.writerow((gene_name, n, name, probe))
     return output.getvalue()
