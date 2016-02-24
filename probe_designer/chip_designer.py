@@ -1,5 +1,5 @@
 __author__ = 'Eric'
-from utils.misc import reverse_complement
+from probe_designer.utils.misc import reverse_complement
 from pathlib import Path
 import csv
 from itertools import groupby

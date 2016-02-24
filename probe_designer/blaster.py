@@ -1,9 +1,15 @@
 import csv
 from collections import defaultdict
+import os
 
 from Bio.Blast import NCBIXML
 from Bio.Blast.Applications import NcbiblastnCommandline as blastn
 from tempfile import NamedTemporaryFile
+
+os.environ['BLASTDB'] = os.path.join(os.path.expanduser("~"), "blastdb")
+
+os.environ['$BLASTDB'] = os.path.join(os.path.expanduser("~"), "blastdb")
+
 
 # Get merged embryonic 11.5 encode data
 with open('db/encode_counts.csv', 'r') as f:

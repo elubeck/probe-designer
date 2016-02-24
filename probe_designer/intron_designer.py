@@ -5,6 +5,7 @@ import random
 import sys
 from tempfile import NamedTemporaryFile
 from pathlib import Path
+import os
 
 import dataset
 from Bio import SeqIO
@@ -137,8 +138,11 @@ class Designer(object):
     def __init__(self, organism='mouse'):
         intron_db = dataset.connect("sqlite:///db/intron_probes3.db")
         self.probe_db = intron_db[organism]
+        blast_path = os.path.join(os.path.expanduser("~"),
+                                    "blastdb", "old_format",
+                                    "transcribed_mouse2")
         self.o = OligoarrayDesigner(
-            blast_db='/home/eric/blastdb/old_format/transcribed_mouse2')
+            blast_db=blast_path)
         self.probe_size = probe_size
 
 
@@ -149,8 +153,11 @@ def design_introns(reversed=False):
     intron_db = dataset.connect("sqlite:///db/intron_probes_10k_3.db")
     probe_db = intron_db['mouse']
     used_probes = set([row['Name'] for row in probe_db.distinct("Name")])
+    blast_path = os.path.join(os.path.expanduser("~"),
+                              "blastdb", "old_format",
+                              "transcribed_mouse2")
     o = OligoarrayDesigner(
-        blast_db='/home/eric/blastdb/old_format/transcribed_mouse2')
+        blast_db=blast_path)
     chunksize = 12
     probe_size = 35
     chunks = []

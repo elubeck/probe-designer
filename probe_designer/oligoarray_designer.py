@@ -1,4 +1,5 @@
 import csv
+import os
 from multiprocessing import cpu_count
 from time import sleep
 from tempfile import NamedTemporaryFile
@@ -112,9 +113,9 @@ class OligoarrayDesigner(object):
         results.close()
         return res
 
-    def __init__(self,
-                 blast_db="/home/eric/blastdb/old_format/mouse_refseq_rnaDB"):
-        self.blast_db = blast_db
+    def __init__(self, blast_db=os.path.expanduser("~") + "/blastdb/old_format/mouse_refseq_rnaDB"):
+
+       self.blast_db = blast_db
 
 
 class OligoArrayResults(object):
