@@ -11,10 +11,10 @@ import dataset
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
 
-from intron_locator import IntronGetter, ChromIntronIterator
+from probe_designer.intron_locator import IntronGetter, ChromIntronIterator
 from progressbar import ProgressBar
-from oligoarray_designer import OligoarrayDesigner
-from utils.misc import  gc_count, n_probes
+from probe_designer.oligoarray_designer import OligoarrayDesigner
+from probe_designer.utils.misc import  gc_count, n_probes
 
 csv.field_size_limit(sys.maxsize)  # Prevent field size overflow.
 
