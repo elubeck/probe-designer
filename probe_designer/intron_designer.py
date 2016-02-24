@@ -204,4 +204,5 @@ def design_introns(reversed=False):
             probe_db.insert_many(res)
             p_bar.update(n)
             chunks = []
+        print("DOCGGG")
     p_bar.finish()
