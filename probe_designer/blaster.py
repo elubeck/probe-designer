@@ -48,6 +48,7 @@ def parse_hits(handle, strand=1, match_thresh=13):
     :return: dictionary of query:[target...] hits for each query
     """
     #Parse blast hits
+    # TODO: YODAI! Make it so strand can equal "both."
     gene_hits = defaultdict(list)
     for record in NCBIXML.parse(handle):
         gene_hits[record.query] = [
@@ -55,6 +56,7 @@ def parse_hits(handle, strand=1, match_thresh=13):
         for alignment in record.alignments:
             for hsp in alignment.hsps:
                 #Check that hit is on opposite strand
+                # TODO: YODAI! Make it so strand can equal "both."
                 if hsp.frame[1] == strand:
                     block_len = [len(block) for block in hsp.match.split(" ")]
                     if any(True for b in block_len if b >= match_thresh):

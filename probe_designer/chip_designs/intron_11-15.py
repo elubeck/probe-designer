@@ -77,7 +77,7 @@ p_match = ({probe['seq']
             for probe in probe_db.find(target=hit)} for hit in hits)
 long_enough = [p_set for p_set in p_match if len(p_set) >= 24]
 
-probe_filterer = ProbeFilter(db='gencode_tracks_reversed_introns+mRNA')
+probe_filterer = probefilter(db='gencode_tracks_reversed_introns+mrna')
 
 
 def filter_wrapper(gene):
@@ -98,7 +98,7 @@ def filter_wrapper(gene):
     return f_probes
 
 
-print("Filtering")
+print("filtering")
 flat_probes = []
 all_probes = {}
 dbs = ['intron_probes_4']
@@ -116,9 +116,9 @@ for db in dbs:
         for p in filtered_probe_table.distinct('target')
     }
     remaining_genes = set(genes).difference(used_probes)
-    p_bar = ProgressBar(maxval=len(remaining_genes))
-    from multiprocessing import Pool, cpu_count
-    p = Pool(processes=cpu_count())
+    p_bar = progressbar(maxval=len(remaining_genes))
+    from multiprocessing import pool, cpu_count
+    p = pool(processes=cpu_count())
     for n, f_probes in enumerate(p.imap(filter_wrapper, remaining_genes)):
         if any(f_probes):
             filtered_probe_table.insert_many(f_probes)

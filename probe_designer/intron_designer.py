@@ -152,7 +152,8 @@ def design_introns(reversed=False):
     # First get used probes
     intron_db = dataset.connect("sqlite:///db/intron_probes_10k_3.db")
     probe_db = intron_db['mouse']
-    used_probes = set([row['Name'] for row in probe_db.distinct("Name")])
+    #used_probes = set([row['Name'] for row in probe_db.distinct("Name")])
+    used_probes = set()
     blast_path = os.path.join(os.path.expanduser("~"),
                               "blastdb", "old_format",
                               "transcribed_mouse2")
@@ -204,5 +205,7 @@ def design_introns(reversed=False):
             probe_db.insert_many(res)
             p_bar.update(n)
             chunks = []
-        print("DOCGGG")
     p_bar.finish()
+
+
+design_introns(reversed=False)
