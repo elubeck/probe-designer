@@ -159,7 +159,9 @@ class ProbeFilter(object):
             "{},{}".format(gene_name, n): probe
             for n, probe in enumerate(flat_probes)
         }
+        # TODO: YODAI! Make it so strand can equal "both."
         res = self.run_blast(probe_lookup, match_thresh, db=self.db)
+        # TODO: YODAI! Make a function that counts the number of blast hits and returns as a copy number
         hit_vals = self.blast2copynum(res)
         filtered_probes = self.filter_probes(hit_vals,
                                              gene_name,

@@ -9,6 +9,11 @@ from sh import oligoarray_cl as oligoarray
 
 
 class OligoarrayDesigner(object):
+    # TODO: YODAI this one is important
+    """
+    Check that the false positive blast database isn't using genome names to find the true positive.
+    If so, you'll need to feed it more than coordinates.
+    """
     def run(self,
             input_file,
             output_file="temp/output.txt",
