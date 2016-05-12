@@ -29,7 +29,7 @@ class OligoarrayDesigner(object):
             cross_hyb_temp=65,
             min_gc=40,
             max_gc=60,
-            prohibited_seqs=[6 * 'C', 6 * 'G', 6 * 'T', 6 * 'A'],
+            prohibited_seqs=(6 * 'C', 6 * 'G', 6 * 'T', 6 * 'A'),
             num_processors=-1,
             min_dist=2,
             timeout=10,
