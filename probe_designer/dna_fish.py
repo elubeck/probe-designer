@@ -83,7 +83,7 @@ initial_probes = design(genes)
 
 probe_filterer = ProbeFilter(db='gencode_tracks_reversed_introns+mrna')
 passed = []
-for Print Shipping labelsgene in initial_probes:
+for gene in initial_probes:
     probes_that_are_good_for_one_gene = probe_filterer.run(flat_probes, )
     passed.append(probes_that_are_good_for_one_gene)
 
