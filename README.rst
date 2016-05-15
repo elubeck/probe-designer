@@ -14,7 +14,6 @@ Probe Designer
 
 For generating short probes for imaging mRNA
 
-* Free software: BSD license
 * Documentation: http://probe_designer.rtfd.org.
 
 Features
