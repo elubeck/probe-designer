@@ -1,6 +1,7 @@
 from __future__ import print_function, division
 import csv
-from collections import Counter from itertools import groupby
+from collections import Counter
+from itertools import groupby
 import zipfile
 from tempfile import NamedTemporaryFile
 

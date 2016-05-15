@@ -1,5 +1,5 @@
 gene_str = """
-ABCG2; NeuroD1; ASCL1/Mash1; Noggin; Beta-catenin; Notch-1; Notch-2; Brg1  ; Nrf2  ; N-Cadherin; Nucleostemin; Calcitonin R; Numb; CD15/Lewis X; Otx2; CDCP1; Pax3; COUP-TF I/NR2F1; Pax6; CXCR4; PDGF R alpha; FABP7/B-FABP; PKC zeta; FABP 8/M-FABP; Prominin-2; FGFR2; ROR2; FGFR4; RUNX1/CBFA2; FoxD3; RXR alpha/NR2B1; Frizzled-9; sFRP-2; GATA-2; SLAIN 1; GCNF/NR6A1; SOX1; GFAP; SOX2; Glut1; SOX9; HOXB1; SOX11; ID2; SOX21; Meteorin; SSEA-1; MSX1; TRAF-4; Musashi-1; Vimentin; Musashi-2; ZIC1; Nestin
+ABCG2; NeuroD1; ASCL1/Mash1; Noggin; Beta-catenin; Notch-1; Nrf2  ; N-Cadherin; Nucleostemin; Calcitonin R; Numb; CD15/Lewis X; Otx2; CDCP1; Pax3; COUP-TF I/NR2F1; Pax6; CXCR4; PDGF R alpha; FABP7/B-FABP; PKC zeta; FABP 8/M-FABP; Prominin-2; FGFR2; ROR2; FGFR4; RUNX1/CBFA2; FoxD3; RXR alpha/NR2B1; Frizzled-9; sFRP-2; GATA-2; SLAIN 1; GCNF/NR6A1; SOX1; GFAP; SOX2; Glut1; SOX9; HOXB1; SOX11; ID2; SOX21; Meteorin; SSEA-1; MSX1; TRAF-4; Musashi-1; Vimentin; Musashi-2; ZIC1; Nestin
 
 A2B5; AP-2 Alpha; ATPase Na+/K+ transporting alpha 1; Activin RIIA; Brg1; CD168/RHAMM; CD4; Doublecortin/DCX; Frizzled 4/CD344; GAP43; Jagged1; Laminin; MSX1/HOX7; Mash1; Musashi-1; Nestin; Netrin-1; Netrin-4; Neuritin; NeuroD1; Neurofilament alpha-internexin/NF66; Notch1; Notch2; Notch3; Nucleostemin; Otx2; PAX3; S100B; SOX2; Semaphorin 3C; Semaphorin 6A; Semaphorin 6B; Semaphorin 7A; TROY/TNFRSF19; Tubulin BII; Tuj 1; Vimentin
 
@@ -38,6 +38,7 @@ try:
 except FileNotFoundError:
     print("No json")
     passed = {}
+params = {'cds_only': True, 'length': 26, 'spacing':0, 'gc_target':0.55, 'gc_min':0.35, 'gc_max':0.75}
 for frag in gene_str.split(";"):
     for sub_frag in frag.split('/'):
         name = sub_frag.strip(" \n")
@@ -45,8 +46,11 @@ for frag in gene_str.split(";"):
         # Make best set of probes
         if name1 in passed.keys():
             continue
-        name, probes, seq = design_step(name1, cds_only=True, length=26, spacing=0,
-                                        gc_target=0.55, gc_min=0.35, gc_max=0.75)
+        print(name, name1)
+        if name1 is 'Notch-2': continue
+        if name is 'Notch-2':
+            continue
+        name, probes, seq = design_step(name1, **params)
         if name == "FAILED":
             esearch = Entrez.read(Entrez.esearch(db='gene',
                                                 term='"{}"[gene] AND "Mus musculus"[orgn]'.format(
@@ -67,17 +71,24 @@ for frag in gene_str.split(";"):
             else:
                 continue
             name1 = result[0]['Entrezgene_gene']['Gene-ref']['Gene-ref_locus']
-            name, probes, seq = design_step(name1, cds_only=True, length=26, spacing=0,
-                                            gc_target=0.55, gc_min=0.35, gc_max=0.75)
+            name, probes, seq = design_step(name1, **params)
         if name in passed.keys():
             continue
         probes = set(probes)
         if not probes:
             continue
-        probes = filterer.run(probes, name, match_thresh=14, n_probes=48,
-                              max_off_target=2000, off_target_hits=6)
+
+        f_probes = []
+        iters = 0
+        while iters < 5:
+            max_off = 1 + iters * 2000
+            f_probes = filterer.run(probes, name, match_thresh=14, n_probes=48,
+                                  max_off_target=max_off, off_target_hits=6)
+            if len(f_probes) >= 24: break
+            iters += 1
+        probes = set(f_probes)
         print(name, len(probes), len(''.join(seq)))
-        passed[name] = probes
+        passed[name] = list(probes)
         with open("brain_type_genes.json".format(), 'w') as f_out:
             json.dump(passed, f_out)
 
